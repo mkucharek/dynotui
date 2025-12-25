@@ -23,6 +23,18 @@ const SK_OPERATORS: { value: SortKeyOperator; label: string }[] = [
 	{ value: 'between', label: 'between' },
 ]
 
+function parseValue(value: string): string | number {
+	const trimmed = value.trim()
+	// Check if it's a valid number (integer or float)
+	if (/^-?\d+(\.\d+)?$/.test(trimmed)) {
+		const num = Number(trimmed)
+		if (!Number.isNaN(num)) {
+			return num
+		}
+	}
+	return trimmed
+}
+
 export function QueryForm({
 	partitionKeyName,
 	sortKeyName,
@@ -61,14 +73,14 @@ export function QueryForm({
 
 			if (key.return && activeField === fields[fields.length - 1] && pkValue) {
 				const params: QueryParams = {
-					partitionKey: { name: partitionKeyName, value: pkValue },
+					partitionKey: { name: partitionKeyName, value: parseValue(pkValue) },
 				}
 				if (sortKeyName && skValue) {
 					params.sortKey = {
 						name: sortKeyName,
 						operator: skOperator,
-						value: skValue,
-						value2: skOperator === 'between' ? skValue2 : undefined,
+						value: parseValue(skValue),
+						value2: skOperator === 'between' ? parseValue(skValue2) : undefined,
 					}
 				}
 				onSubmit(params)
