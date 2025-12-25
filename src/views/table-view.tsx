@@ -1,6 +1,7 @@
 import { Box, Text, useInput } from 'ink'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
+	type Column,
 	DataTable,
 	Footer,
 	Header,
@@ -36,6 +37,37 @@ export function TableView({ state }: TableViewProps) {
 	const currentData = mode === 'query' ? query : scan
 	const { items, isLoading, error, hasMore, scannedCount } = currentData
 
+	// Build columns with PK and SK first
+	const columns = useMemo(() => {
+		if (!tableInfo || items.length === 0) return undefined
+
+		const cols: Column<Record<string, unknown>>[] = []
+		const usedKeys = new Set<string>()
+
+		// Add PK first
+		cols.push({ key: tableInfo.partitionKey, header: tableInfo.partitionKey })
+		usedKeys.add(tableInfo.partitionKey)
+
+		// Add SK second if exists
+		if (tableInfo.sortKey) {
+			cols.push({ key: tableInfo.sortKey, header: tableInfo.sortKey })
+			usedKeys.add(tableInfo.sortKey)
+		}
+
+		// Add other keys from first item (up to 5 total columns)
+		const firstItem = items[0]
+		if (firstItem) {
+			for (const key of Object.keys(firstItem)) {
+				if (!usedKeys.has(key) && cols.length < 5) {
+					cols.push({ key, header: key })
+					usedKeys.add(key)
+				}
+			}
+		}
+
+		return cols
+	}, [tableInfo, items])
+
 	useEffect(() => {
 		fetchTableInfo(tableName)
 	}, [tableName, fetchTableInfo])
@@ -53,6 +85,10 @@ export function TableView({ state }: TableViewProps) {
 
 			if (key.escape) {
 				goBack()
+			} else if (input === 'j' || key.downArrow) {
+				setSelectedIndex((i) => Math.min(i + 1, items.length - 1))
+			} else if (input === 'k' || key.upArrow) {
+				setSelectedIndex((i) => Math.max(i - 1, 0))
 			} else if (input === 's' && mode !== 'scan') {
 				setMode('scan')
 				setSelectedIndex(0)
@@ -148,9 +184,11 @@ export function TableView({ state }: TableViewProps) {
 						) : (
 							<DataTable
 								data={items}
+								columns={columns}
 								selectedIndex={selectedIndex}
 								onSelect={setSelectedIndex}
 								onEnter={(item) => navigate({ view: 'item', tableName, item })}
+								focused={false}
 							/>
 						)}
 					</Panel>
@@ -168,6 +206,7 @@ export function TableView({ state }: TableViewProps) {
 								? scan.refresh()
 								: query.queryParams && query.executeQuery(query.queryParams, true)
 						}
+						focused={false}
 					/>
 				)}
 			</Box>
