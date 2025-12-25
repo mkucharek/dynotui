@@ -1,6 +1,6 @@
 ---
 title: "Phase 4: UI Components"
-status: To Do
+status: Done
 labels: [ui, components]
 ---
 
@@ -9,20 +9,20 @@ labels: [ui, components]
 Reusable Ink components for the TUI.
 
 ## Tasks
-- [ ] `src/components/layout/header.tsx` - profile/region display
-- [ ] `src/components/layout/footer.tsx` - keybindings help
-- [ ] `src/components/layout/panel.tsx` - bordered container
-- [ ] `src/components/table/data-table.tsx` - main table display
+- [x] `src/components/layout/header.tsx` - profile/region display
+- [x] `src/components/layout/footer.tsx` - keybindings help
+- [x] `src/components/layout/panel.tsx` - bordered container
+- [x] `src/components/table/data-table.tsx` - main table display
   - Column auto-sizing
   - Row selection
   - Keyboard nav (j/k)
-- [ ] `src/components/table/pagination.tsx` - page controls (n/p)
-- [ ] `src/components/table-list.tsx` - table selector list
-- [ ] `src/components/forms/query-form.tsx` - PK/SK input
-- [ ] `src/components/forms/filter-input.tsx` - scan filter
-- [ ] `src/components/item-detail.tsx` - JSON viewer
-- [ ] `src/components/loading.tsx` - spinner wrapper
-- [ ] Component tests
+- [x] `src/components/table/pagination.tsx` - page controls (n/p)
+- [x] `src/components/table-list.tsx` - table selector list
+- [x] `src/components/forms/query-form.tsx` - PK/SK input
+- [x] `src/components/forms/filter-input.tsx` - scan filter
+- [x] `src/components/item-detail.tsx` - JSON viewer
+- [x] `src/components/loading.tsx` - spinner wrapper
+- [x] Component tests
 
 ## Acceptance
 - Components render correctly
