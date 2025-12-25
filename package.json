@@ -43,8 +43,10 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.3.10",
+		"@testing-library/react": "^16.3.1",
 		"@types/react": "^19.2.7",
 		"@vitest/coverage-v8": "^4.0.16",
+		"jsdom": "^27.3.0",
 		"lefthook": "^2.0.12",
 		"pkg": "^5.8.1",
 		"tsup": "^8.5.1",
