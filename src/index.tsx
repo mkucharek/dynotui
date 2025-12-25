@@ -43,13 +43,25 @@ function App({ profile, region }: { profile?: string; region?: string }) {
 		if (region) setRegion(region)
 	}, [profile, region, setProfile, setRegion])
 
-	useInput((input, key) => {
-		if (input === 'q' && currentView.view === 'home') {
-			exit()
-		} else if (key.ctrl && input === 'c') {
-			exit()
-		}
-	})
+	// Global exit with Ctrl+C
+	useInput(
+		(_input, key) => {
+			if (key.ctrl && key.name === 'c') {
+				exit()
+			}
+		},
+		{ isActive: true },
+	)
+
+	// Quit with 'q' only from home view
+	useInput(
+		(input) => {
+			if (input === 'q') {
+				exit()
+			}
+		},
+		{ isActive: currentView.view === 'home' },
+	)
 
 	return (
 		<Box flexDirection="column" width="100%" height="100%">

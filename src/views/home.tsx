@@ -14,7 +14,11 @@ export function HomeView() {
 	}, [fetchTables])
 
 	useInput((input, key) => {
-		if (input === 'n' && hasMore && !isLoading) {
+		if (input === 'j' || key.downArrow) {
+			setSelectedIndex((i) => Math.min(i + 1, tables.length - 1))
+		} else if (input === 'k' || key.upArrow) {
+			setSelectedIndex((i) => Math.max(i - 1, 0))
+		} else if (input === 'n' && hasMore && !isLoading) {
 			fetchNextPage()
 		} else if (input === 'r') {
 			fetchTables()
@@ -45,6 +49,7 @@ export function HomeView() {
 							selectedIndex={selectedIndex}
 							onSelect={setSelectedIndex}
 							onEnter={handleTableSelect}
+							focused={false}
 						/>
 					)}
 
