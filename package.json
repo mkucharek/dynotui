@@ -1,0 +1,55 @@
+{
+	"name": "dynotui",
+	"version": "0.1.0",
+	"description": "DynamoDB TUI client",
+	"type": "module",
+	"bin": {
+		"dynotui": "./dist/index.js"
+	},
+	"main": "./dist/index.js",
+	"files": [
+		"dist"
+	],
+	"scripts": {
+		"dev": "tsx src/index.tsx",
+		"build": "tsup",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"lint": "biome check .",
+		"format": "biome format --write .",
+		"check": "biome check --write ."
+	},
+	"keywords": [
+		"dynamodb",
+		"tui",
+		"cli",
+		"aws"
+	],
+	"author": "",
+	"license": "MIT",
+	"packageManager": "pnpm@10.22.0",
+	"dependencies": {
+		"@aws-sdk/client-dynamodb": "^3.958.0",
+		"@aws-sdk/credential-providers": "^3.958.0",
+		"@aws-sdk/lib-dynamodb": "^3.958.0",
+		"@inkjs/ui": "^2.0.0",
+		"chalk": "^5.6.2",
+		"ink": "^6.6.0",
+		"ink-table": "^3.1.0",
+		"pastel": "^4.0.0",
+		"react": "^19.2.3",
+		"zod": "^4.2.1",
+		"zustand": "^5.0.9"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.3.10",
+		"@types/react": "^19.2.7",
+		"@vitest/coverage-v8": "^4.0.16",
+		"lefthook": "^2.0.12",
+		"pkg": "^5.8.1",
+		"tsup": "^8.5.1",
+		"tsx": "^4.21.0",
+		"typescript": "^5.9.3",
+		"vitest": "^4.0.16"
+	}
+}
