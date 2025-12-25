@@ -13,7 +13,15 @@ export type QueryFormProps = {
 
 type FormField = 'pk' | 'skOp' | 'sk' | 'sk2'
 
-const SK_OPERATORS: SortKeyOperator[] = ['=', '<', '<=', '>', '>=', 'begins_with', 'between']
+const SK_OPERATORS: { value: SortKeyOperator; label: string }[] = [
+	{ value: 'eq', label: '=' },
+	{ value: 'lt', label: '<' },
+	{ value: 'lte', label: '<=' },
+	{ value: 'gt', label: '>' },
+	{ value: 'gte', label: '>=' },
+	{ value: 'begins_with', label: 'begins_with' },
+	{ value: 'between', label: 'between' },
+]
 
 export function QueryForm({
 	partitionKeyName,
@@ -23,7 +31,7 @@ export function QueryForm({
 	focused = true,
 }: QueryFormProps) {
 	const [pkValue, setPkValue] = useState('')
-	const [skOperator, setSkOperator] = useState<SortKeyOperator>('=')
+	const [skOperator, setSkOperator] = useState<SortKeyOperator>('eq')
 	const [skValue, setSkValue] = useState('')
 	const [skValue2, setSkValue2] = useState('')
 	const [activeField, setActiveField] = useState<FormField>('pk')
@@ -71,11 +79,11 @@ export function QueryForm({
 				if (input === 'j' || key.downArrow) {
 					const newIndex = (opIndex + 1) % SK_OPERATORS.length
 					setOpIndex(newIndex)
-					setSkOperator(SK_OPERATORS[newIndex])
+					setSkOperator(SK_OPERATORS[newIndex].value)
 				} else if (input === 'k' || key.upArrow) {
 					const newIndex = (opIndex - 1 + SK_OPERATORS.length) % SK_OPERATORS.length
 					setOpIndex(newIndex)
-					setSkOperator(SK_OPERATORS[newIndex])
+					setSkOperator(SK_OPERATORS[newIndex].value)
 				}
 			}
 		},
@@ -114,8 +122,8 @@ export function QueryForm({
 						</Box>
 						<Text>
 							{SK_OPERATORS.map((op, i) => (
-								<Text key={op} color={i === opIndex ? 'cyan' : 'gray'}>
-									{i === opIndex ? `[${op}]` : ` ${op} `}
+								<Text key={op.value} color={i === opIndex ? 'cyan' : 'gray'}>
+									{i === opIndex ? `[${op.label}]` : ` ${op.label} `}
 									{i < SK_OPERATORS.length - 1 ? ' ' : ''}
 								</Text>
 							))}
