@@ -17,24 +17,15 @@ export function ItemView({ state }: ItemViewProps) {
 		}
 	})
 
-	// Get a preview of the item for the title
-	const itemPreview = Object.entries(item)
-		.slice(0, 2)
-		.map(([k, v]) => `${k}=${typeof v === 'string' ? v : JSON.stringify(v)}`)
-		.join(', ')
-
 	return (
 		<Box flexDirection="column" flexGrow={1}>
 			<Header />
 
 			<Box flexGrow={1} padding={1} flexDirection="column" gap={1}>
-				{/* Item info bar */}
-				<Box gap={2}>
-					<Text bold color="cyan">
-						{tableName}
-					</Text>
-					<Text dimColor>{itemPreview}</Text>
-				</Box>
+				{/* Table name */}
+				<Text bold color="cyan">
+					{tableName}
+				</Text>
 
 				{/* Item detail panel */}
 				<Panel title="Item Detail" focused flexGrow={1}>
