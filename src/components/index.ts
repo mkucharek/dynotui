@@ -1,6 +1,7 @@
 // Layout
 
 export { FilterInput, type FilterInputProps } from './forms/filter-input.js'
+export { InlineSelector, type InlineSelectorProps, type SelectorItem } from './forms/inline-selector.js'
 // Forms
 export { QueryForm, type QueryFormProps } from './forms/query-form.js'
 export { ItemDetail, type ItemDetailProps } from './item-detail.js'

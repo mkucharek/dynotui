@@ -45,8 +45,8 @@ function App({ profile, region }: { profile?: string; region?: string }) {
 
 	// Global exit with Ctrl+C
 	useInput(
-		(_input, key) => {
-			if (key.ctrl && key.name === 'c') {
+		(input, key) => {
+			if (key.ctrl && input === 'c') {
 				exit()
 			}
 		},
