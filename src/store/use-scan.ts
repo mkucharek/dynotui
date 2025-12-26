@@ -1,11 +1,17 @@
 import { useCallback, useState } from 'react'
-import { type ScanParams, type ScanResult, scan } from '../services/dynamodb/index.js'
+import {
+	type ParsedDynamoDBError,
+	type ScanParams,
+	type ScanResult,
+	parseDynamoDBError,
+	scan,
+} from '../services/dynamodb/index.js'
 import { useAppStore } from './app-store.js'
 
 export type ScanState = {
 	items: Record<string, unknown>[]
 	isLoading: boolean
-	error: string | null
+	error: ParsedDynamoDBError | null
 	hasMore: boolean
 	lastEvaluatedKey: Record<string, unknown> | undefined
 	scannedCount: number
@@ -60,7 +66,7 @@ export function useScan(tableName: string) {
 			} catch (err) {
 				setState((prev) => ({
 					...prev,
-					error: err instanceof Error ? err.message : 'Scan failed',
+					error: parseDynamoDBError(err),
 					isLoading: false,
 				}))
 				return null

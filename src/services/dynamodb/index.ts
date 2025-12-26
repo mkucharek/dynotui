@@ -22,3 +22,9 @@ export {
 	listTables,
 	type TableInfo,
 } from './tables.js'
+export {
+	type DynamoDBErrorType,
+	getErrorDisplayMessage,
+	parseDynamoDBError,
+	type ParsedDynamoDBError,
+} from './errors.js'

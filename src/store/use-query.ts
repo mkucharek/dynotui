@@ -1,11 +1,17 @@
 import { useCallback, useState } from 'react'
-import { type QueryParams, type QueryResult, query } from '../services/dynamodb/index.js'
+import {
+	type ParsedDynamoDBError,
+	type QueryParams,
+	type QueryResult,
+	parseDynamoDBError,
+	query,
+} from '../services/dynamodb/index.js'
 import { useAppStore } from './app-store.js'
 
 export type QueryState = {
 	items: Record<string, unknown>[]
 	isLoading: boolean
-	error: string | null
+	error: ParsedDynamoDBError | null
 	hasMore: boolean
 	lastEvaluatedKey: Record<string, unknown> | undefined
 	scannedCount: number
@@ -62,7 +68,7 @@ export function useQuery(tableName: string) {
 			} catch (err) {
 				setState((prev) => ({
 					...prev,
-					error: err instanceof Error ? err.message : 'Query failed',
+					error: parseDynamoDBError(err),
 					isLoading: false,
 				}))
 				return null

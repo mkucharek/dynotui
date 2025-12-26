@@ -1,17 +1,31 @@
 import { Box, Text, useInput } from 'ink'
 import TextInput from 'ink-text-input'
 import { useState } from 'react'
-import type { QueryParams, SortKeyOperator } from '../../schemas/query-params.js'
+import type { FilterCondition, SortKeyOperator } from '../../schemas/query-params.js'
+import { FilterBuilder } from './filter-builder.js'
+
+// Form output type (without tableName, which is added by the caller)
+export type QueryFormOutput = {
+	partitionKey: { name: string; value: string | number }
+	sortKey?: {
+		name: string
+		value: string | number
+		operator: SortKeyOperator
+		valueTo?: string | number
+	}
+	filterConditions?: FilterCondition[]
+}
 
 export type QueryFormProps = {
 	partitionKeyName: string
 	sortKeyName?: string
-	onSubmit: (params: QueryParams) => void
+	onSubmit: (params: QueryFormOutput) => void
 	onCancel: () => void
 	focused?: boolean
 }
 
 type FormField = 'pk' | 'skOp' | 'sk' | 'sk2'
+type FormSection = 'keys' | 'filters'
 
 const SK_OPERATORS: { value: SortKeyOperator; label: string }[] = [
 	{ value: 'eq', label: '=' },
@@ -48,6 +62,8 @@ export function QueryForm({
 	const [skValue2, setSkValue2] = useState('')
 	const [activeField, setActiveField] = useState<FormField>('pk')
 	const [opIndex, setOpIndex] = useState(0)
+	const [activeSection, setActiveSection] = useState<FormSection>('keys')
+	const [filterConditions, setFilterConditions] = useState<FilterCondition[]>([])
 
 	const fields: FormField[] = sortKeyName ? ['pk', 'skOp', 'sk'] : ['pk']
 	if (sortKeyName && skOperator === 'between') {
@@ -55,51 +71,78 @@ export function QueryForm({
 	}
 
 	const currentFieldIndex = fields.indexOf(activeField)
+	const isOnLastField = activeField === fields[fields.length - 1]
+
+	const handleSubmit = () => {
+		if (!pkValue) return
+		const params: QueryFormOutput = {
+			partitionKey: { name: partitionKeyName, value: parseValue(pkValue) },
+		}
+		if (sortKeyName && skValue) {
+			params.sortKey = {
+				name: sortKeyName,
+				operator: skOperator,
+				value: parseValue(skValue),
+				valueTo: skOperator === 'between' ? parseValue(skValue2) : undefined,
+			}
+		}
+		if (filterConditions.length > 0) {
+			// Only include valid filters (with attribute name)
+			const validFilters = filterConditions.filter((f) => f.attribute.trim() !== '')
+			if (validFilters.length > 0) {
+				params.filterConditions = validFilters
+			}
+		}
+		onSubmit(params)
+	}
 
 	useInput(
 		(input, key) => {
-			if (!focused) return
+			if (!focused || activeSection !== 'keys') return
 
 			if (key.escape) {
 				onCancel()
 				return
 			}
 
-			if (key.tab || (key.return && activeField !== fields[fields.length - 1])) {
-				const nextIndex = (currentFieldIndex + 1) % fields.length
-				setActiveField(fields[nextIndex])
+			// Press 'f' on last field to add filters
+			if (input === 'f' && isOnLastField) {
+				setFilterConditions([{ attribute: '', operator: 'eq', value: '' }])
+				setActiveSection('filters')
 				return
 			}
 
-			if (key.return && activeField === fields[fields.length - 1] && pkValue) {
-				const params: QueryParams = {
-					partitionKey: { name: partitionKeyName, value: parseValue(pkValue) },
-				}
-				if (sortKeyName && skValue) {
-					params.sortKey = {
-						name: sortKeyName,
-						operator: skOperator,
-						value: parseValue(skValue),
-						value2: skOperator === 'between' ? parseValue(skValue2) : undefined,
-					}
-				}
-				onSubmit(params)
+			if (key.tab || (key.return && !isOnLastField)) {
+				const nextIndex = (currentFieldIndex + 1) % fields.length
+				const nextField = fields[nextIndex]
+				if (nextField) setActiveField(nextField)
+				return
+			}
+
+			if (key.return && isOnLastField && pkValue) {
+				handleSubmit()
 				return
 			}
 
 			if (activeField === 'skOp') {
 				if (input === 'j' || key.downArrow) {
 					const newIndex = (opIndex + 1) % SK_OPERATORS.length
-					setOpIndex(newIndex)
-					setSkOperator(SK_OPERATORS[newIndex].value)
+					const newOp = SK_OPERATORS[newIndex]
+					if (newOp) {
+						setOpIndex(newIndex)
+						setSkOperator(newOp.value)
+					}
 				} else if (input === 'k' || key.upArrow) {
 					const newIndex = (opIndex - 1 + SK_OPERATORS.length) % SK_OPERATORS.length
-					setOpIndex(newIndex)
-					setSkOperator(SK_OPERATORS[newIndex].value)
+					const newOp = SK_OPERATORS[newIndex]
+					if (newOp) {
+						setOpIndex(newIndex)
+						setSkOperator(newOp.value)
+					}
 				}
 			}
 		},
-		{ isActive: focused },
+		{ isActive: focused && activeSection === 'keys' },
 	)
 
 	return (
@@ -172,10 +215,33 @@ export function QueryForm({
 				</>
 			)}
 
+			{/* Filter Builder */}
+			{activeSection === 'filters' && (
+				<Box marginTop={1}>
+					<FilterBuilder
+						conditions={filterConditions}
+						onChange={setFilterConditions}
+						focused={focused && activeSection === 'filters'}
+						onExit={() => {
+							if (pkValue) {
+								handleSubmit()
+							} else {
+								setActiveSection('keys')
+							}
+						}}
+					/>
+				</Box>
+			)}
+
 			<Box marginTop={1}>
 				<Text dimColor>
-					<Text color="cyan">Tab</Text> Next field {'  '}
+					<Text color="cyan">Tab</Text> Next {'  '}
 					<Text color="cyan">Enter</Text> Submit {'  '}
+					{activeSection === 'keys' && (
+						<>
+							<Text color="cyan">f</Text> Filter {'  '}
+						</>
+					)}
 					<Text color="cyan">Esc</Text> Cancel
 				</Text>
 			</Box>

@@ -188,6 +188,151 @@ describe('query', () => {
 
 		expect(result.items).toHaveLength(1)
 	})
+
+	it('queries with filter condition eq', async () => {
+		const mockSend = vi.fn().mockResolvedValue({
+			Items: [{ pk: 'user#1', status: 'active' }],
+			Count: 1,
+			ScannedCount: 5,
+		})
+		vi.mocked(createClient).mockReturnValue({ send: mockSend } as never)
+
+		const result = await query({
+			tableName: 'test',
+			partitionKey: { name: 'pk', value: 'user#1' },
+			filterConditions: [{ attribute: 'status', operator: 'eq', value: 'active' }],
+		})
+
+		expect(result.items).toHaveLength(1)
+		expect(result.scannedCount).toBe(5)
+		// Verify FilterExpression was passed
+		expect(mockSend).toHaveBeenCalledWith(
+			expect.objectContaining({
+				input: expect.objectContaining({
+					FilterExpression: '#f0 = :f0',
+				}),
+			}),
+		)
+	})
+
+	it('queries with multiple filter conditions', async () => {
+		const mockSend = vi.fn().mockResolvedValue({
+			Items: [{ pk: 'order#1', status: 'shipped', total: 150 }],
+			Count: 1,
+			ScannedCount: 10,
+		})
+		vi.mocked(createClient).mockReturnValue({ send: mockSend } as never)
+
+		const result = await query({
+			tableName: 'orders',
+			partitionKey: { name: 'pk', value: 'order#1' },
+			filterConditions: [
+				{ attribute: 'status', operator: 'eq', value: 'shipped' },
+				{ attribute: 'total', operator: 'gt', value: 100 },
+			],
+		})
+
+		expect(result.items).toHaveLength(1)
+		expect(mockSend).toHaveBeenCalledWith(
+			expect.objectContaining({
+				input: expect.objectContaining({
+					FilterExpression: '#f0 = :f0 AND #f1 > :f1',
+				}),
+			}),
+		)
+	})
+
+	it('queries with filter condition between', async () => {
+		const mockSend = vi.fn().mockResolvedValue({
+			Items: [{ pk: 'product#1', price: 50 }],
+			Count: 1,
+			ScannedCount: 3,
+		})
+		vi.mocked(createClient).mockReturnValue({ send: mockSend } as never)
+
+		await query({
+			tableName: 'products',
+			partitionKey: { name: 'pk', value: 'product#1' },
+			filterConditions: [{ attribute: 'price', operator: 'between', value: 20, value2: 100 }],
+		})
+
+		expect(mockSend).toHaveBeenCalledWith(
+			expect.objectContaining({
+				input: expect.objectContaining({
+					FilterExpression: '#f0 BETWEEN :f0 AND :f0b',
+				}),
+			}),
+		)
+	})
+
+	it('queries with filter condition contains', async () => {
+		const mockSend = vi.fn().mockResolvedValue({
+			Items: [{ pk: 'doc#1', tags: ['typescript', 'nodejs'] }],
+			Count: 1,
+			ScannedCount: 2,
+		})
+		vi.mocked(createClient).mockReturnValue({ send: mockSend } as never)
+
+		await query({
+			tableName: 'docs',
+			partitionKey: { name: 'pk', value: 'doc#1' },
+			filterConditions: [{ attribute: 'tags', operator: 'contains', value: 'typescript' }],
+		})
+
+		expect(mockSend).toHaveBeenCalledWith(
+			expect.objectContaining({
+				input: expect.objectContaining({
+					FilterExpression: 'contains(#f0, :f0)',
+				}),
+			}),
+		)
+	})
+
+	it('queries with filter condition attribute_exists', async () => {
+		const mockSend = vi.fn().mockResolvedValue({
+			Items: [{ pk: 'user#1', email: 'test@example.com' }],
+			Count: 1,
+			ScannedCount: 3,
+		})
+		vi.mocked(createClient).mockReturnValue({ send: mockSend } as never)
+
+		await query({
+			tableName: 'users',
+			partitionKey: { name: 'pk', value: 'user#1' },
+			filterConditions: [{ attribute: 'email', operator: 'attribute_exists' }],
+		})
+
+		expect(mockSend).toHaveBeenCalledWith(
+			expect.objectContaining({
+				input: expect.objectContaining({
+					FilterExpression: 'attribute_exists(#f0)',
+				}),
+			}),
+		)
+	})
+
+	it('queries with filter condition ne', async () => {
+		const mockSend = vi.fn().mockResolvedValue({
+			Items: [{ pk: 'item#1', status: 'pending' }],
+			Count: 1,
+			ScannedCount: 2,
+		})
+		vi.mocked(createClient).mockReturnValue({ send: mockSend } as never)
+
+		await query({
+			tableName: 'items',
+			partitionKey: { name: 'pk', value: 'item#1' },
+			filterConditions: [{ attribute: 'status', operator: 'ne', value: 'deleted' }],
+		})
+
+		expect(mockSend).toHaveBeenCalledWith(
+			expect.objectContaining({
+				input: expect.objectContaining({
+					FilterExpression: '#f0 <> :f0',
+				}),
+			}),
+		)
+	})
 })
 
 describe('createPaginatedQuery', () => {

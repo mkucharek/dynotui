@@ -9,6 +9,10 @@ import { useQuery } from './use-query.js'
 
 vi.mock('../services/dynamodb/index.js', () => ({
 	query: vi.fn(),
+	parseDynamoDBError: vi.fn((err) => ({
+		type: 'unknown',
+		message: err instanceof Error ? err.message : 'Unknown error',
+	})),
 }))
 
 import { query } from '../services/dynamodb/index.js'
@@ -84,7 +88,10 @@ describe('useQuery', () => {
 		})
 
 		await waitFor(() => {
-			expect(result.current.error).toBe('Query failed')
+			expect(result.current.error).toEqual({
+				type: 'unknown',
+				message: 'Query failed',
+			})
 		})
 	})
 

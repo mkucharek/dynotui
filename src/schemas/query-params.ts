@@ -12,6 +12,32 @@ export const sortKeyOperatorSchema = z.enum([
 
 export type SortKeyOperator = z.infer<typeof sortKeyOperatorSchema>
 
+// Filter operators for FilterExpression (non-key attributes)
+export const filterOperatorSchema = z.enum([
+	'eq',
+	'ne',
+	'lt',
+	'lte',
+	'gt',
+	'gte',
+	'between',
+	'begins_with',
+	'contains',
+	'attribute_exists',
+	'attribute_not_exists',
+])
+
+export type FilterOperator = z.infer<typeof filterOperatorSchema>
+
+export const filterConditionSchema = z.object({
+	attribute: z.string().min(1),
+	operator: filterOperatorSchema,
+	value: z.union([z.string(), z.number(), z.boolean()]).optional(),
+	value2: z.union([z.string(), z.number()]).optional(), // for 'between' operator
+})
+
+export type FilterCondition = z.infer<typeof filterConditionSchema>
+
 export const queryParamsSchema = z.object({
 	tableName: z.string().min(1),
 	partitionKey: z.object({
@@ -26,6 +52,7 @@ export const queryParamsSchema = z.object({
 			valueTo: z.union([z.string(), z.number()]).optional(),
 		})
 		.optional(),
+	filterConditions: z.array(filterConditionSchema).optional(),
 	limit: z.number().int().min(1).max(1000).optional(),
 	scanIndexForward: z.boolean().optional(),
 	indexName: z.string().optional(),

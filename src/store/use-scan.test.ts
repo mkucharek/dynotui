@@ -9,6 +9,10 @@ import { useScan } from './use-scan.js'
 
 vi.mock('../services/dynamodb/index.js', () => ({
 	scan: vi.fn(),
+	parseDynamoDBError: vi.fn((err) => ({
+		type: 'unknown',
+		message: err instanceof Error ? err.message : 'Unknown error',
+	})),
 }))
 
 import { scan } from '../services/dynamodb/index.js'
@@ -99,7 +103,10 @@ describe('useScan', () => {
 		})
 
 		await waitFor(() => {
-			expect(result.current.error).toBe('Scan failed')
+			expect(result.current.error).toEqual({
+				type: 'unknown',
+				message: 'Scan failed',
+			})
 		})
 	})
 
