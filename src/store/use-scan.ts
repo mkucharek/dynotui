@@ -18,7 +18,7 @@ export type ScanState = {
 }
 
 export function useScan(tableName: string) {
-	const { profile, region } = useAppStore()
+	const { profile, region, pageSize } = useAppStore()
 
 	const [state, setState] = useState<ScanState>({
 		items: [],
@@ -44,7 +44,7 @@ export function useScan(tableName: string) {
 				const result: ScanResult = await scan(
 					{
 						tableName,
-						limit: params?.limit ?? 25,
+						limit: params?.limit ?? pageSize,
 						filterExpression: params?.filterExpression,
 						expressionAttributeNames: params?.expressionAttributeNames,
 						expressionAttributeValues: params?.expressionAttributeValues,
@@ -72,7 +72,7 @@ export function useScan(tableName: string) {
 				return null
 			}
 		},
-		[tableName, profile, region, state.lastEvaluatedKey],
+		[tableName, profile, region, pageSize, state.lastEvaluatedKey],
 	)
 
 	const fetchNextPage = useCallback(() => executeScan(undefined, false), [executeScan])

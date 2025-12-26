@@ -1,4 +1,4 @@
-export type View = 'home' | 'table' | 'item'
+export type View = 'home' | 'table' | 'item' | 'settings'
 
 export type HomeViewState = {
 	view: 'home'
@@ -16,6 +16,10 @@ export type ItemViewState = {
 	item: Record<string, unknown>
 }
 
-export type ViewState = HomeViewState | TableViewState | ItemViewState
+export type SettingsViewState = {
+	view: 'settings'
+}
+
+export type ViewState = HomeViewState | TableViewState | ItemViewState | SettingsViewState
 
 export type NavigationHistory = ViewState[]

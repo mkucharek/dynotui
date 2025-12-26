@@ -9,6 +9,10 @@ export function useNavigation() {
 		navigate({ view: 'home' })
 	}, [navigate])
 
+	const navigateToSettings = useCallback(() => {
+		navigate({ view: 'settings' })
+	}, [navigate])
+
 	const navigateToTable = useCallback(
 		(tableName: string, mode: 'scan' | 'query' = 'scan') => {
 			navigate({ view: 'table', tableName, mode } satisfies TableViewState)
@@ -37,6 +41,7 @@ export function useNavigation() {
 		canGoBack: canGoBack(),
 		goBack,
 		navigateToHome,
+		navigateToSettings,
 		navigateToTable,
 		navigateToItem,
 		switchMode,

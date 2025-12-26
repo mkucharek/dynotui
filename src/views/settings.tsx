@@ -1,18 +1,31 @@
-import { Box, useInput } from 'ink'
-import { useEffect, useMemo, useState } from 'react'
-import { Footer, Header, InlineSelector, Loading, Panel, type SelectorItem, TableList } from '../components/index.js'
+import { Box, Text, useInput } from 'ink'
+import { useMemo, useState } from 'react'
+import { Footer, Header, InlineSelector, Panel, type SelectorItem } from '../components/index.js'
 import { getAwsRegions, listProfiles } from '../services/aws-config.js'
 import { resetClient } from '../services/dynamodb/index.js'
 import { useAppStore } from '../store/app-store.js'
-import { useTables } from '../store/use-tables.js'
 
-type HomeMode = 'browsing' | 'selecting-profile' | 'selecting-region'
+type SettingsMode = 'browsing' | 'selecting-profile' | 'selecting-region' | 'selecting-pageSize'
 
-export function HomeView() {
-	const { navigate, profile, region, setProfile, setRegion } = useAppStore()
-	const { tables, isLoading, error, hasMore, fetchTables, fetchNextPage } = useTables()
+const PAGE_SIZE_OPTIONS = [25, 50, 100, 200]
+
+type SettingItem = {
+	key: string
+	label: string
+	value: string
+	mode: SettingsMode
+}
+
+export function SettingsView() {
+	const { profile, region, pageSize, setProfile, setRegion, setPageSize, goBack } = useAppStore()
+	const [mode, setMode] = useState<SettingsMode>('browsing')
 	const [selectedIndex, setSelectedIndex] = useState(0)
-	const [mode, setMode] = useState<HomeMode>('browsing')
+
+	const settings: SettingItem[] = [
+		{ key: 'profile', label: 'AWS Profile', value: profile ?? 'default', mode: 'selecting-profile' },
+		{ key: 'region', label: 'AWS Region', value: region, mode: 'selecting-region' },
+		{ key: 'pageSize', label: 'Page Size', value: String(pageSize), mode: 'selecting-pageSize' },
+	]
 
 	const profiles = useMemo<SelectorItem[]>(() => {
 		const items = listProfiles()
@@ -30,6 +43,10 @@ export function HomeView() {
 		return getAwsRegions().map((r) => ({ value: r, label: r }))
 	}, [])
 
+	const pageSizes = useMemo<SelectorItem[]>(() => {
+		return PAGE_SIZE_OPTIONS.map((s) => ({ value: String(s), label: String(s) }))
+	}, [])
+
 	const currentProfileIndex = useMemo(() => {
 		const idx = profiles.findIndex((p) => p.value === (profile ?? 'default'))
 		return idx >= 0 ? idx : 0
@@ -40,23 +57,25 @@ export function HomeView() {
 		return idx >= 0 ? idx : 0
 	}, [regions, region])
 
-	useEffect(() => {
-		fetchTables()
-	}, [fetchTables])
+	const currentPageSizeIndex = useMemo(() => {
+		const idx = pageSizes.findIndex((s) => s.value === String(pageSize))
+		return idx >= 0 ? idx : 0
+	}, [pageSizes, pageSize])
 
 	const handleProfileSelect = (value: string) => {
 		setProfile(value === 'default' ? undefined : value)
 		resetClient()
-		setSelectedIndex(0)
-		fetchTables()
 		setMode('browsing')
 	}
 
 	const handleRegionSelect = (value: string) => {
 		setRegion(value)
 		resetClient()
-		setSelectedIndex(0)
-		fetchTables()
+		setMode('browsing')
+	}
+
+	const handlePageSizeSelect = (value: string) => {
+		setPageSize(Number(value))
 		setMode('browsing')
 	}
 
@@ -68,34 +87,23 @@ export function HomeView() {
 		if (mode !== 'browsing') return
 
 		if (input === 'j' || key.downArrow) {
-			setSelectedIndex((i) => Math.min(i + 1, tables.length - 1))
+			setSelectedIndex((i) => Math.min(i + 1, settings.length - 1))
 		} else if (input === 'k' || key.upArrow) {
 			setSelectedIndex((i) => Math.max(i - 1, 0))
-		} else if (input === 'n' && hasMore && !isLoading) {
-			fetchNextPage()
-		} else if (input === 'r') {
-			fetchTables()
-		} else if (input === 'p') {
-			setMode('selecting-profile')
-		} else if (input === 'R') {
-			setMode('selecting-region')
-		} else if (input === 's') {
-			navigate({ view: 'settings' })
-		} else if (key.return && tables[selectedIndex]) {
-			navigate({ view: 'table', tableName: tables[selectedIndex], mode: 'scan' })
+		} else if (key.return) {
+			const setting = settings[selectedIndex]
+			if (setting) {
+				setMode(setting.mode)
+			}
+		} else if (key.escape) {
+			goBack()
 		}
 	})
 
-	const handleTableSelect = (tableName: string) => {
-		navigate({ view: 'table', tableName, mode: 'scan' })
-	}
-
 	const browsingBindings = [
-		{ key: 'Enter', label: 'Open' },
-		{ key: 's', label: 'Settings' },
-		{ key: 'n', label: 'Load More' },
-		{ key: 'r', label: 'Refresh' },
-		{ key: 'q', label: 'Quit' },
+		{ key: 'j/k', label: 'Navigate' },
+		{ key: 'Enter', label: 'Edit' },
+		{ key: 'Esc', label: 'Back' },
 	]
 
 	const selectorBindings = [
@@ -128,30 +136,30 @@ export function HomeView() {
 			)
 		}
 
-		return (
-			<>
-				{isLoading && tables.length === 0 ? (
-					<Loading message="Loading tables..." />
-				) : error ? (
-					<Box>
-						<Box flexDirection="column">{error}</Box>
-					</Box>
-				) : (
-					<TableList
-						tables={tables}
-						selectedIndex={selectedIndex}
-						onSelect={setSelectedIndex}
-						onEnter={handleTableSelect}
-						focused={false}
-					/>
-				)}
+		if (mode === 'selecting-pageSize') {
+			return (
+				<InlineSelector
+					title="Select Page Size"
+					items={pageSizes}
+					initialIndex={currentPageSizeIndex}
+					onSelect={handlePageSizeSelect}
+					onCancel={handleSelectorCancel}
+				/>
+			)
+		}
 
-				{hasMore && !isLoading && tables.length > 0 && (
-					<Box marginTop={1}>
-						<Loading message="Press 'n' to load more..." />
+		return (
+			<Box flexDirection="column">
+				{settings.map((setting, index) => (
+					<Box key={setting.key} gap={2}>
+						<Text color={selectedIndex === index ? 'cyan' : undefined}>
+							{selectedIndex === index ? '>' : ' '}
+						</Text>
+						<Text bold={selectedIndex === index}>{setting.label}:</Text>
+						<Text color="yellow">{setting.value}</Text>
 					</Box>
-				)}
-			</>
+				))}
+			</Box>
 		)
 	}
 
@@ -160,7 +168,7 @@ export function HomeView() {
 			<Header />
 
 			<Box flexGrow={1} padding={1}>
-				<Panel title={mode === 'browsing' ? 'Tables' : 'Settings'} focused flexGrow={1}>
+				<Panel title="Settings" focused flexGrow={1}>
 					{renderContent()}
 				</Panel>
 			</Box>

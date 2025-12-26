@@ -2,7 +2,7 @@ import { Box, render, useApp, useInput } from 'ink'
 import meow from 'meow'
 import { useEffect } from 'react'
 import { useAppStore } from './store/app-store.js'
-import { HomeView, ItemView, TableView } from './views/index.js'
+import { HomeView, ItemView, SettingsView, TableView } from './views/index.js'
 
 const cli = meow(
 	`
@@ -66,6 +66,7 @@ function App({ profile, region }: { profile?: string; region?: string }) {
 	return (
 		<Box flexDirection="column" width="100%" height="100%">
 			{currentView.view === 'home' && <HomeView />}
+			{currentView.view === 'settings' && <SettingsView />}
 			{currentView.view === 'table' && <TableView state={currentView} />}
 			{currentView.view === 'item' && <ItemView state={currentView} />}
 		</Box>

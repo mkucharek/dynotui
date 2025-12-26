@@ -18,7 +18,7 @@ export type QueryState = {
 }
 
 export function useQuery(tableName: string) {
-	const { profile, region } = useAppStore()
+	const { profile, region, pageSize } = useAppStore()
 
 	const [state, setState] = useState<QueryState>({
 		items: [],
@@ -49,7 +49,7 @@ export function useQuery(tableName: string) {
 					{
 						tableName,
 						...params,
-						limit: params.limit ?? 25,
+						limit: params.limit ?? pageSize,
 						exclusiveStartKey: reset ? undefined : state.lastEvaluatedKey,
 					},
 					{ profile, region },
@@ -74,7 +74,7 @@ export function useQuery(tableName: string) {
 				return null
 			}
 		},
-		[tableName, profile, region, state.lastEvaluatedKey],
+		[tableName, profile, region, pageSize, state.lastEvaluatedKey],
 	)
 
 	const fetchNextPage = useCallback(async () => {
