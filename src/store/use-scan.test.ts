@@ -13,6 +13,7 @@ vi.mock('../services/dynamodb/index.js', () => ({
 		type: 'unknown',
 		message: err instanceof Error ? err.message : 'Unknown error',
 	})),
+	buildFilterExpression: vi.fn(() => null),
 }))
 
 import { scan } from '../services/dynamodb/index.js'
@@ -48,7 +49,7 @@ describe('useScan', () => {
 		const { result } = renderHook(() => useScan('test-table'))
 
 		await act(async () => {
-			await result.current.executeScan({}, true)
+			await result.current.executeScan({ reset: true })
 		})
 
 		await waitFor(() => {
@@ -75,7 +76,7 @@ describe('useScan', () => {
 		const { result } = renderHook(() => useScan('test-table'))
 
 		await act(async () => {
-			await result.current.executeScan({}, true)
+			await result.current.executeScan({ reset: true })
 		})
 
 		await waitFor(() => {
@@ -99,7 +100,7 @@ describe('useScan', () => {
 		const { result } = renderHook(() => useScan('test-table'))
 
 		await act(async () => {
-			await result.current.executeScan({}, true)
+			await result.current.executeScan({ reset: true })
 		})
 
 		await waitFor(() => {
@@ -121,7 +122,7 @@ describe('useScan', () => {
 		const { result } = renderHook(() => useScan('test-table'))
 
 		await act(async () => {
-			await result.current.executeScan({}, true)
+			await result.current.executeScan({ reset: true })
 		})
 
 		await waitFor(() => {

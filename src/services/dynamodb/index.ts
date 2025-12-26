@@ -1,5 +1,6 @@
 export { type ClientConfig, createClient, resetClient } from './client.js'
 export {
+	buildFilterExpression,
 	createPaginatedQuery,
 	fetchNextQueryPage,
 	type PaginatedQueryState,

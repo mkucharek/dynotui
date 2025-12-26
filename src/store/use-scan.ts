@@ -1,8 +1,10 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
+import type { FilterCondition } from '../schemas/query-params.js'
 import {
 	type ParsedDynamoDBError,
 	type ScanParams,
 	type ScanResult,
+	buildFilterExpression,
 	parseDynamoDBError,
 	scan,
 } from '../services/dynamodb/index.js'
@@ -15,6 +17,7 @@ export type ScanState = {
 	hasMore: boolean
 	lastEvaluatedKey: Record<string, unknown> | undefined
 	scannedCount: number
+	filterConditions: FilterCondition[]
 }
 
 export function useScan(tableName: string) {
@@ -27,38 +30,70 @@ export function useScan(tableName: string) {
 		hasMore: true,
 		lastEvaluatedKey: undefined,
 		scannedCount: 0,
+		filterConditions: [],
 	})
 
+	// Use refs to avoid stale closure issues in pagination
+	const filterConditionsRef = useRef<FilterCondition[]>([])
+	const lastEvaluatedKeyRef = useRef<Record<string, unknown> | undefined>(undefined)
+
 	const executeScan = useCallback(
-		async (params?: Partial<Omit<ScanParams, 'tableName'>>, reset = false) => {
+		async (
+			options: {
+				filterConditions?: FilterCondition[]
+				reset?: boolean
+			} = {},
+		) => {
+			const { filterConditions, reset = false } = options
+
+			// Update ref if new filters explicitly provided
+			if (filterConditions !== undefined) {
+				filterConditionsRef.current = filterConditions
+			}
+			// Always use ref value (it's always current)
+			const filtersToUse = filterConditionsRef.current
+			const startKey = reset ? undefined : lastEvaluatedKeyRef.current
+
 			setState((prev) => ({
 				...prev,
 				isLoading: true,
 				error: null,
 				...(reset
-					? { items: [], lastEvaluatedKey: undefined, hasMore: true, scannedCount: 0 }
+					? {
+							items: [],
+							lastEvaluatedKey: undefined,
+							hasMore: true,
+							scannedCount: 0,
+							filterConditions: filterConditionsRef.current,
+						}
 					: {}),
 			}))
+
+			// Build filter expression from conditions
+			const filterParams = buildFilterExpression(filtersToUse)
 
 			try {
 				const result: ScanResult = await scan(
 					{
 						tableName,
-						limit: params?.limit ?? pageSize,
-						filterExpression: params?.filterExpression,
-						expressionAttributeNames: params?.expressionAttributeNames,
-						expressionAttributeValues: params?.expressionAttributeValues,
-						exclusiveStartKey: reset ? undefined : state.lastEvaluatedKey,
+						limit: pageSize,
+						filterExpression: filterParams?.filterExpression,
+						expressionAttributeNames: filterParams?.expressionAttributeNames,
+						expressionAttributeValues: filterParams?.expressionAttributeValues,
+						exclusiveStartKey: startKey,
 					},
 					{ profile, region },
 				)
+
+				// Update ref for next pagination call
+				lastEvaluatedKeyRef.current = result.lastEvaluatedKey
 
 				setState((prev) => ({
 					...prev,
 					items: reset ? result.items : [...prev.items, ...result.items],
 					lastEvaluatedKey: result.lastEvaluatedKey,
 					hasMore: result.lastEvaluatedKey !== undefined,
-					scannedCount: prev.scannedCount + result.scannedCount,
+					scannedCount: (reset ? 0 : prev.scannedCount) + result.scannedCount,
 					isLoading: false,
 				}))
 
@@ -72,17 +107,26 @@ export function useScan(tableName: string) {
 				return null
 			}
 		},
-		[tableName, profile, region, pageSize, state.lastEvaluatedKey],
+		[tableName, profile, region, pageSize],
 	)
 
-	const fetchNextPage = useCallback(() => executeScan(undefined, false), [executeScan])
+	const fetchNextPage = useCallback(() => executeScan({ reset: false }), [executeScan])
 
 	const refresh = useCallback(
-		(params?: Partial<Omit<ScanParams, 'tableName'>>) => executeScan(params, true),
+		(filterConditions?: FilterCondition[]) =>
+			executeScan({ filterConditions, reset: true }),
 		[executeScan],
 	)
 
+	const clearFilters = useCallback(() => {
+		filterConditionsRef.current = []
+		setState((prev) => ({ ...prev, filterConditions: [] }))
+		return executeScan({ filterConditions: [], reset: true })
+	}, [executeScan])
+
 	const reset = useCallback(() => {
+		filterConditionsRef.current = []
+		lastEvaluatedKeyRef.current = undefined
 		setState({
 			items: [],
 			isLoading: false,
@@ -90,6 +134,7 @@ export function useScan(tableName: string) {
 			hasMore: true,
 			lastEvaluatedKey: undefined,
 			scannedCount: 0,
+			filterConditions: [],
 		})
 	}, [])
 
@@ -98,6 +143,7 @@ export function useScan(tableName: string) {
 		executeScan,
 		fetchNextPage,
 		refresh,
+		clearFilters,
 		reset,
 	}
 }

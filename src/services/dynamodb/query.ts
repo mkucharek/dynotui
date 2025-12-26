@@ -154,10 +154,10 @@ function buildFilterConditionClause(
 	return { clause, attrName, attrValue }
 }
 
-function buildFilterExpression(conditions: FilterCondition[]): {
+export function buildFilterExpression(conditions: FilterCondition[]): {
 	filterExpression: string
 	expressionAttributeNames: Record<string, string>
-	expressionAttributeValues: Record<string, unknown>
+	expressionAttributeValues: Record<string, unknown> | undefined
 } | null {
 	if (!conditions || conditions.length === 0) {
 		return null
@@ -177,7 +177,8 @@ function buildFilterExpression(conditions: FilterCondition[]): {
 	return {
 		filterExpression: clauses.join(' AND '),
 		expressionAttributeNames,
-		expressionAttributeValues,
+		// DynamoDB rejects empty ExpressionAttributeValues, return undefined if empty
+		expressionAttributeValues: Object.keys(expressionAttributeValues).length > 0 ? expressionAttributeValues : undefined,
 	}
 }
 

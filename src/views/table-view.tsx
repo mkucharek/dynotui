@@ -9,8 +9,10 @@ import {
 	Pagination,
 	Panel,
 	QueryForm,
+	ScanFilterForm,
 } from '../components/index.js'
-import type { QueryParams } from '../schemas/query-params.js'
+import type { FilterCondition, QueryParams } from '../schemas/query-params.js'
+import { getErrorDisplayMessage } from '../services/dynamodb/errors.js'
 import { useAppStore } from '../store/app-store.js'
 import { useQuery } from '../store/use-query.js'
 import { useScan } from '../store/use-scan.js'
@@ -21,7 +23,7 @@ export type TableViewProps = {
 	state: TableViewState
 }
 
-type Mode = 'scan' | 'query' | 'query-form'
+type Mode = 'scan' | 'query' | 'query-form' | 'scan-filter-form'
 
 export function TableView({ state }: TableViewProps) {
 	const { tableName } = state
@@ -35,7 +37,7 @@ export function TableView({ state }: TableViewProps) {
 
 	const tableInfo = tableInfoCache.get(tableName)
 	const currentData = mode === 'query' ? query : scan
-	const { items, isLoading, error, hasMore, scannedCount } = currentData
+	const { items, isLoading, error, hasMore, scannedCount, filterConditions } = currentData as typeof scan
 
 	// Build columns with PK and SK first
 	const columns = useMemo(() => {
@@ -81,18 +83,23 @@ export function TableView({ state }: TableViewProps) {
 
 	useInput(
 		(input, key) => {
-			if (mode === 'query-form') return
-
 			if (key.escape) {
 				goBack()
 			} else if (input === 'j' || key.downArrow) {
 				setSelectedIndex((i) => Math.min(i + 1, items.length - 1))
 			} else if (input === 'k' || key.upArrow) {
 				setSelectedIndex((i) => Math.max(i - 1, 0))
-			} else if (input === 's' && mode !== 'scan') {
-				setMode('scan')
-				setSelectedIndex(0)
-			} else if (input === 'q' && mode !== 'query-form') {
+			} else if (input === 's') {
+				if (mode !== 'scan') {
+					setMode('scan')
+					setSelectedIndex(0)
+				} else {
+					// Clear filters and refresh when already in scan mode
+					scan.clearFilters()
+				}
+			} else if (input === 'f' && mode === 'scan') {
+				setMode('scan-filter-form')
+			} else if (input === 'q') {
 				setMode('query-form')
 			} else if (input === 'n' && hasMore && !isLoading) {
 				if (mode === 'scan') {
@@ -114,7 +121,7 @@ export function TableView({ state }: TableViewProps) {
 				})
 			}
 		},
-		{ isActive: mode !== 'query-form' },
+		{ isActive: mode === 'scan' || mode === 'query' },
 	)
 
 	const handleQuerySubmit = (params: QueryParams) => {
@@ -125,6 +132,16 @@ export function TableView({ state }: TableViewProps) {
 
 	const handleQueryCancel = () => {
 		setMode(state.mode === 'query' ? 'query' : 'scan')
+	}
+
+	const handleScanFilterSubmit = (conditions: FilterCondition[]) => {
+		setMode('scan')
+		setSelectedIndex(0)
+		scan.refresh(conditions)
+	}
+
+	const handleScanFilterCancel = () => {
+		setMode('scan')
 	}
 
 	return (
@@ -154,9 +171,12 @@ export function TableView({ state }: TableViewProps) {
 					)}
 					<Text dimColor>
 						Mode:{' '}
-						<Text color={mode === 'scan' ? 'green' : 'blue'}>
-							{mode === 'query-form' ? 'query' : mode}
+						<Text color={mode === 'scan' || mode === 'scan-filter-form' ? 'green' : 'blue'}>
+							{mode === 'query-form' ? 'query' : mode === 'scan-filter-form' ? 'scan' : mode}
 						</Text>
+						{filterConditions.length > 0 && mode === 'scan' && (
+							<Text color="yellow"> ({filterConditions.length} filters)</Text>
+						)}
 					</Text>
 				</Box>
 
@@ -172,13 +192,24 @@ export function TableView({ state }: TableViewProps) {
 					</Panel>
 				)}
 
+				{/* Scan filter form */}
+				{mode === 'scan-filter-form' && (
+					<Panel title="Scan Filter">
+						<ScanFilterForm
+							initialConditions={filterConditions}
+							onSubmit={handleScanFilterSubmit}
+							onCancel={handleScanFilterCancel}
+						/>
+					</Panel>
+				)}
+
 				{/* Results panel */}
-				{mode !== 'query-form' && (
+				{(mode === 'scan' || mode === 'query') && (
 					<Panel title="Results" focused flexGrow={1}>
 						{isLoading && items.length === 0 ? (
 							<Loading message={mode === 'scan' ? 'Scanning...' : 'Querying...'} />
 						) : error ? (
-							<Text color="red">{error}</Text>
+							<Text color="red">{getErrorDisplayMessage(error)}</Text>
 						) : items.length === 0 ? (
 							<Text dimColor>No items found</Text>
 						) : (
@@ -195,7 +226,7 @@ export function TableView({ state }: TableViewProps) {
 				)}
 
 				{/* Pagination */}
-				{mode !== 'query-form' && items.length > 0 && (
+				{(mode === 'scan' || mode === 'query') && items.length > 0 && (
 					<Pagination
 						hasMore={hasMore}
 						isLoading={isLoading}
@@ -212,14 +243,26 @@ export function TableView({ state }: TableViewProps) {
 			</Box>
 
 			<Footer
-				bindings={[
-					{ key: 'Enter', label: 'View' },
-					{ key: 's', label: 'Scan' },
-					{ key: 'q', label: 'Query' },
-					{ key: 'n', label: 'More' },
-					{ key: 'r', label: 'Refresh' },
-					{ key: 'Esc', label: 'Back' },
-				]}
+				bindings={
+					mode === 'scan'
+						? [
+								{ key: 'Enter', label: 'View' },
+								{ key: 's', label: 'Scan' },
+								{ key: 'f', label: 'Filter' },
+								{ key: 'q', label: 'Query' },
+								{ key: 'n', label: 'More' },
+								{ key: 'r', label: 'Refresh' },
+								{ key: 'Esc', label: 'Back' },
+							]
+						: [
+								{ key: 'Enter', label: 'View' },
+								{ key: 's', label: 'Scan' },
+								{ key: 'q', label: 'Query' },
+								{ key: 'n', label: 'More' },
+								{ key: 'r', label: 'Refresh' },
+								{ key: 'Esc', label: 'Back' },
+							]
+				}
 			/>
 		</Box>
 	)

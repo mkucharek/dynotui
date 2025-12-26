@@ -4,6 +4,7 @@ export { FilterInput, type FilterInputProps } from './forms/filter-input.js'
 export { InlineSelector, type InlineSelectorProps, type SelectorItem } from './forms/inline-selector.js'
 // Forms
 export { QueryForm, type QueryFormProps } from './forms/query-form.js'
+export { ScanFilterForm, type ScanFilterFormProps } from './forms/scan-filter-form.js'
 export { ItemDetail, type ItemDetailProps } from './item-detail.js'
 export { Footer, type FooterProps, type KeyBinding } from './layout/footer.js'
 export { Header } from './layout/header.js'
