@@ -1,5 +1,7 @@
 import { create } from 'zustand'
+import type { FilterCondition } from '../schemas/query-params.js'
 import { getDefaultRegion } from '../services/aws-config.js'
+import type { ParsedDynamoDBError } from '../services/dynamodb/errors.js'
 import { getTableInfo, listTables, type TableInfo } from '../services/dynamodb/index.js'
 import { loadUserConfig, saveUserConfig } from '../services/user-config.js'
 import type { ViewState } from '../types/navigation.js'
@@ -7,6 +9,17 @@ import type { ViewState } from '../types/navigation.js'
 const savedConfig = loadUserConfig()
 
 export const DEFAULT_PAGE_SIZE = 25
+
+export type ScanState = {
+	items: Record<string, unknown>[]
+	isLoading: boolean
+	error: ParsedDynamoDBError | null
+	hasMore: boolean
+	lastEvaluatedKey: Record<string, unknown> | undefined
+	scannedCount: number
+	filterConditions: FilterCondition[]
+	initialized: boolean
+}
 
 export type TablesState = {
 	tables: string[]
@@ -31,6 +44,9 @@ export type AppState = {
 	// Tables
 	tablesState: TablesState
 
+	// Scan state cache (keyed by tableName)
+	scanStateCache: Map<string, ScanState>
+
 	// Actions
 	setProfile: (profile: string | undefined) => void
 	setRegion: (region: string) => void
@@ -43,6 +59,11 @@ export type AppState = {
 	fetchTables: (reset?: boolean) => Promise<void>
 	fetchTableInfo: (tableName: string) => Promise<TableInfo | null>
 	clearTables: () => void
+
+	// Scan state actions
+	getScanState: (tableName: string) => ScanState
+	setScanState: (tableName: string, state: ScanState) => void
+	clearScanState: (tableName: string) => void
 
 	// Config sync
 	syncFromConfig: () => void
@@ -58,6 +79,17 @@ const initialTablesState: TablesState = {
 	initialized: false,
 }
 
+export const createInitialScanState = (): ScanState => ({
+	items: [],
+	isLoading: false,
+	error: null,
+	hasMore: true,
+	lastEvaluatedKey: undefined,
+	scannedCount: 0,
+	filterConditions: [],
+	initialized: false,
+})
+
 export const useAppStore = create<AppState>((set, get) => ({
 	// Initial state
 	profile: savedConfig.profile,
@@ -66,17 +98,18 @@ export const useAppStore = create<AppState>((set, get) => ({
 	currentView: { view: 'home' },
 	history: [],
 	tablesState: initialTablesState,
+	scanStateCache: new Map(),
 
 	// Actions
 	setProfile: (profile) => {
-		set({ profile, tablesState: initialTablesState })
+		set({ profile, tablesState: initialTablesState, scanStateCache: new Map() })
 		const { region, pageSize } = get()
 		saveUserConfig({ profile, region, pageSize })
 		get().fetchTables(true)
 	},
 
 	setRegion: (region) => {
-		set({ region, tablesState: initialTablesState })
+		set({ region, tablesState: initialTablesState, scanStateCache: new Map() })
 		const { profile, pageSize } = get()
 		saveUserConfig({ profile, region, pageSize })
 		get().fetchTables(true)
@@ -167,6 +200,24 @@ export const useAppStore = create<AppState>((set, get) => ({
 	},
 
 	clearTables: () => set({ tablesState: initialTablesState }),
+
+	// Scan state actions
+	getScanState: (tableName) => {
+		const cached = get().scanStateCache.get(tableName)
+		return cached ?? createInitialScanState()
+	},
+
+	setScanState: (tableName, state) => {
+		const newCache = new Map(get().scanStateCache)
+		newCache.set(tableName, state)
+		set({ scanStateCache: newCache })
+	},
+
+	clearScanState: (tableName) => {
+		const newCache = new Map(get().scanStateCache)
+		newCache.delete(tableName)
+		set({ scanStateCache: newCache })
+	},
 
 	syncFromConfig: () => {
 		const config = loadUserConfig()

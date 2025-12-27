@@ -33,7 +33,8 @@ export function TableView({ state }: TableViewProps) {
 	const query = useQuery(tableName)
 
 	const [mode, setMode] = useState<Mode>(state.mode)
-	const [selectedIndex, setSelectedIndex] = useState(0)
+	const initialIndex = state.selectedIndex ?? 0
+	const [selectedIndex, setSelectedIndex] = useState(initialIndex)
 
 	const tableInfo = tableInfoCache.get(tableName)
 	const currentData = mode === 'query' ? query : scan
@@ -75,12 +76,12 @@ export function TableView({ state }: TableViewProps) {
 		fetchTableInfo(tableName)
 	}, [tableName, fetchTableInfo])
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: intentionally run only on mode change
+	// Only run initial scan if not already initialized (prevents re-fetch on back-nav)
 	useEffect(() => {
-		if (mode === 'scan') {
+		if (mode === 'scan' && !scan.initialized && !scan.isLoading) {
 			scan.refresh()
 		}
-	}, [mode])
+	}, [mode, scan.initialized, scan.isLoading, scan.refresh])
 
 	useInput(
 		(input, key) => {
@@ -115,11 +116,10 @@ export function TableView({ state }: TableViewProps) {
 					query.executeQuery(query.queryParams, true)
 				}
 			} else if (key.return && items[selectedIndex]) {
-				navigate({
-					view: 'item',
-					tableName,
-					item: items[selectedIndex],
-				})
+				navigate(
+					{ view: 'item', tableName, item: items[selectedIndex] },
+					{ view: 'table', tableName, mode, selectedIndex },
+				)
 			}
 		},
 		{ isActive: mode === 'scan' || mode === 'query' },
@@ -219,7 +219,12 @@ export function TableView({ state }: TableViewProps) {
 								columns={columns}
 								selectedIndex={selectedIndex}
 								onSelect={setSelectedIndex}
-								onEnter={(item) => navigate({ view: 'item', tableName, item })}
+								onEnter={(item) =>
+									navigate(
+										{ view: 'item', tableName, item },
+										{ view: 'table', tableName, mode, selectedIndex },
+									)
+								}
 								focused={false}
 							/>
 						)}

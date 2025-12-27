@@ -9,6 +9,7 @@ export type TableViewState = {
 	view: 'table'
 	tableName: string
 	mode: 'scan' | 'query'
+	selectedIndex?: number
 }
 
 export type ItemViewState = {
