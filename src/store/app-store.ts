@@ -1,11 +1,21 @@
 import { create } from 'zustand'
 import { getDefaultRegion } from '../services/aws-config.js'
+import { getTableInfo, listTables, type TableInfo } from '../services/dynamodb/index.js'
 import { loadUserConfig, saveUserConfig } from '../services/user-config.js'
 import type { ViewState } from '../types/navigation.js'
 
 const savedConfig = loadUserConfig()
 
 export const DEFAULT_PAGE_SIZE = 25
+
+export type TablesState = {
+	tables: string[]
+	tableInfoCache: Map<string, TableInfo>
+	isLoading: boolean
+	error: string | null
+	hasMore: boolean
+	lastTableName: string | undefined
+}
 
 export type AppState = {
 	// AWS config
@@ -17,13 +27,33 @@ export type AppState = {
 	currentView: ViewState
 	history: ViewState[]
 
+	// Tables
+	tablesState: TablesState
+
 	// Actions
 	setProfile: (profile: string | undefined) => void
 	setRegion: (region: string) => void
 	setPageSize: (pageSize: number) => void
-	navigate: (view: ViewState) => void
+	navigate: (view: ViewState, from?: ViewState) => void
 	goBack: () => void
 	canGoBack: () => boolean
+
+	// Tables actions
+	fetchTables: (reset?: boolean) => Promise<void>
+	fetchTableInfo: (tableName: string) => Promise<TableInfo | null>
+	clearTables: () => void
+
+	// Config sync
+	syncFromConfig: () => void
+}
+
+const initialTablesState: TablesState = {
+	tables: [],
+	tableInfoCache: new Map(),
+	isLoading: false,
+	error: null,
+	hasMore: true,
+	lastTableName: undefined,
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -33,16 +63,17 @@ export const useAppStore = create<AppState>((set, get) => ({
 	pageSize: savedConfig.pageSize ?? DEFAULT_PAGE_SIZE,
 	currentView: { view: 'home' },
 	history: [],
+	tablesState: initialTablesState,
 
 	// Actions
 	setProfile: (profile) => {
-		set({ profile })
+		set({ profile, tablesState: initialTablesState })
 		const { region, pageSize } = get()
 		saveUserConfig({ profile, region, pageSize })
 	},
 
 	setRegion: (region) => {
-		set({ region })
+		set({ region, tablesState: initialTablesState })
 		const { profile, pageSize } = get()
 		saveUserConfig({ profile, region, pageSize })
 	},
@@ -53,9 +84,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 		saveUserConfig({ profile, region, pageSize })
 	},
 
-	navigate: (view) =>
+	navigate: (view, from) =>
 		set((state) => ({
-			history: [...state.history, state.currentView],
+			history: [...state.history, from ?? state.currentView],
 			currentView: view,
 		})),
 
@@ -70,6 +101,82 @@ export const useAppStore = create<AppState>((set, get) => ({
 		}),
 
 	canGoBack: () => get().history.length > 0,
+
+	// Tables actions
+	fetchTables: async (reset = false) => {
+		const { profile, region, tablesState } = get()
+		const startTableName = reset ? undefined : tablesState.lastTableName
+
+		set({
+			tablesState: {
+				...tablesState,
+				isLoading: true,
+				error: null,
+				...(reset ? { tables: [], lastTableName: undefined, hasMore: true } : {}),
+			},
+		})
+
+		try {
+			const result = await listTables({ profile, region }, startTableName)
+			const { tablesState: currentState } = get()
+
+			set({
+				tablesState: {
+					...currentState,
+					tables: reset ? result.tables : [...currentState.tables, ...result.tables],
+					lastTableName: result.lastTableName,
+					hasMore: result.lastTableName !== undefined,
+					isLoading: false,
+				},
+			})
+		} catch (err) {
+			const { tablesState: currentState } = get()
+			set({
+				tablesState: {
+					...currentState,
+					error: err instanceof Error ? err.message : 'Failed to fetch tables',
+					isLoading: false,
+				},
+			})
+		}
+	},
+
+	fetchTableInfo: async (tableName: string) => {
+		const { profile, region, tablesState } = get()
+		const cached = tablesState.tableInfoCache.get(tableName)
+		if (cached) return cached
+
+		try {
+			const info = await getTableInfo(tableName, { profile, region })
+			const { tablesState: currentState } = get()
+			const newCache = new Map(currentState.tableInfoCache)
+			newCache.set(tableName, info)
+			set({
+				tablesState: { ...currentState, tableInfoCache: newCache },
+			})
+			return info
+		} catch {
+			return null
+		}
+	},
+
+	clearTables: () => set({ tablesState: initialTablesState }),
+
+	syncFromConfig: () => {
+		const config = loadUserConfig()
+		const { profile, region, pageSize } = get()
+		const configRegion = config.region ?? getDefaultRegion(config.profile)
+		const configPageSize = config.pageSize ?? DEFAULT_PAGE_SIZE
+
+		// Only update if different to avoid unnecessary re-renders
+		if (profile !== config.profile || region !== configRegion || pageSize !== configPageSize) {
+			set({
+				profile: config.profile,
+				region: configRegion,
+				pageSize: configPageSize,
+			})
+		}
+	},
 }))
 
 // Selectors

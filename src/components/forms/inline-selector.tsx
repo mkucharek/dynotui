@@ -78,9 +78,7 @@ export function InlineSelector({
 							{isSelected ? '> ' : '  '}
 							{item.label}
 						</Text>
-						{item.description && (
-							<Text dimColor> ({item.description})</Text>
-						)}
+						{item.description && <Text dimColor> ({item.description})</Text>}
 					</Box>
 				)
 			})}

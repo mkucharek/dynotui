@@ -1,6 +1,14 @@
 import { Box, useInput } from 'ink'
 import { useEffect, useMemo, useState } from 'react'
-import { Footer, Header, InlineSelector, Loading, Panel, type SelectorItem, TableList } from '../components/index.js'
+import {
+	Footer,
+	Header,
+	InlineSelector,
+	Loading,
+	Panel,
+	type SelectorItem,
+	TableList,
+} from '../components/index.js'
 import { getAwsRegions, listProfiles } from '../services/aws-config.js'
 import { resetClient } from '../services/dynamodb/index.js'
 import { useAppStore } from '../store/app-store.js'
@@ -9,9 +17,10 @@ import { useTables } from '../store/use-tables.js'
 type HomeMode = 'browsing' | 'selecting-profile' | 'selecting-region'
 
 export function HomeView() {
-	const { navigate, profile, region, setProfile, setRegion } = useAppStore()
-	const { tables, isLoading, error, hasMore, fetchTables, fetchNextPage } = useTables()
-	const [selectedIndex, setSelectedIndex] = useState(0)
+	const { currentView, navigate, profile, region, setProfile, setRegion } = useAppStore()
+	const { tables, isLoading, error, hasMore, fetchTables, fetchNextPage, refresh } = useTables()
+	const initialIndex = currentView.view === 'home' ? (currentView.selectedIndex ?? 0) : 0
+	const [selectedIndex, setSelectedIndex] = useState(initialIndex)
 	const [mode, setMode] = useState<HomeMode>('browsing')
 
 	const profiles = useMemo<SelectorItem[]>(() => {
@@ -41,14 +50,15 @@ export function HomeView() {
 	}, [regions, region])
 
 	useEffect(() => {
-		fetchTables()
-	}, [fetchTables])
+		if (tables.length === 0 && !isLoading && !error) {
+			fetchTables()
+		}
+	}, [tables.length, isLoading, error, fetchTables])
 
 	const handleProfileSelect = (value: string) => {
 		setProfile(value === 'default' ? undefined : value)
 		resetClient()
 		setSelectedIndex(0)
-		fetchTables()
 		setMode('browsing')
 	}
 
@@ -56,7 +66,6 @@ export function HomeView() {
 		setRegion(value)
 		resetClient()
 		setSelectedIndex(0)
-		fetchTables()
 		setMode('browsing')
 	}
 
@@ -74,20 +83,23 @@ export function HomeView() {
 		} else if (input === 'n' && hasMore && !isLoading) {
 			fetchNextPage()
 		} else if (input === 'r') {
-			fetchTables()
+			refresh()
 		} else if (input === 'p') {
 			setMode('selecting-profile')
 		} else if (input === 'R') {
 			setMode('selecting-region')
 		} else if (input === 's') {
-			navigate({ view: 'settings' })
+			navigate({ view: 'settings' }, { view: 'home', selectedIndex })
 		} else if (key.return && tables[selectedIndex]) {
-			navigate({ view: 'table', tableName: tables[selectedIndex], mode: 'scan' })
+			navigate(
+				{ view: 'table', tableName: tables[selectedIndex], mode: 'scan' },
+				{ view: 'home', selectedIndex },
+			)
 		}
 	})
 
 	const handleTableSelect = (tableName: string) => {
-		navigate({ view: 'table', tableName, mode: 'scan' })
+		navigate({ view: 'table', tableName, mode: 'scan' }, { view: 'home', selectedIndex })
 	}
 
 	const browsingBindings = [

@@ -22,7 +22,12 @@ export function SettingsView() {
 	const [selectedIndex, setSelectedIndex] = useState(0)
 
 	const settings: SettingItem[] = [
-		{ key: 'profile', label: 'AWS Profile', value: profile ?? 'default', mode: 'selecting-profile' },
+		{
+			key: 'profile',
+			label: 'AWS Profile',
+			value: profile ?? 'default',
+			mode: 'selecting-profile',
+		},
 		{ key: 'region', label: 'AWS Region', value: region, mode: 'selecting-region' },
 		{ key: 'pageSize', label: 'Page Size', value: String(pageSize), mode: 'selecting-pageSize' },
 	]

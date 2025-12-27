@@ -1,11 +1,10 @@
 import { useCallback, useRef, useState } from 'react'
 import type { FilterCondition } from '../schemas/query-params.js'
 import {
-	type ParsedDynamoDBError,
-	type ScanParams,
-	type ScanResult,
 	buildFilterExpression,
+	type ParsedDynamoDBError,
 	parseDynamoDBError,
+	type ScanResult,
 	scan,
 } from '../services/dynamodb/index.js'
 import { useAppStore } from './app-store.js'
@@ -38,12 +37,7 @@ export function useScan(tableName: string) {
 	const lastEvaluatedKeyRef = useRef<Record<string, unknown> | undefined>(undefined)
 
 	const executeScan = useCallback(
-		async (
-			options: {
-				filterConditions?: FilterCondition[]
-				reset?: boolean
-			} = {},
-		) => {
+		async (options: { filterConditions?: FilterCondition[]; reset?: boolean } = {}) => {
 			const { filterConditions, reset = false } = options
 
 			// Update ref if new filters explicitly provided
@@ -113,8 +107,7 @@ export function useScan(tableName: string) {
 	const fetchNextPage = useCallback(() => executeScan({ reset: false }), [executeScan])
 
 	const refresh = useCallback(
-		(filterConditions?: FilterCondition[]) =>
-			executeScan({ filterConditions, reset: true }),
+		(filterConditions?: FilterCondition[]) => executeScan({ filterConditions, reset: true }),
 		[executeScan],
 	)
 

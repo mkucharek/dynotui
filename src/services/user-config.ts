@@ -28,7 +28,8 @@ export function loadUserConfig(): UserConfig {
 			region: typeof obj.region === 'string' ? obj.region : undefined,
 			pageSize: typeof obj.pageSize === 'number' ? obj.pageSize : undefined,
 		}
-	} catch {
+	} catch (err) {
+		console.error('Failed to load user config:', err)
 		return {}
 	}
 }
@@ -39,8 +40,8 @@ export function saveUserConfig(config: UserConfig): void {
 		if (!existsSync(dir)) {
 			mkdirSync(dir, { recursive: true })
 		}
-		writeFileSync(CONFIG_PATH, JSON.stringify(config, null, '\t') + '\n')
-	} catch {
-		// Silently fail - don't crash app if config can't be saved
+		writeFileSync(CONFIG_PATH, `${JSON.stringify(config, null, '\t')}\n`)
+	} catch (err) {
+		console.error('Failed to save user config:', err)
 	}
 }

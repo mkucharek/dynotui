@@ -1,9 +1,9 @@
 import { useCallback, useState } from 'react'
 import {
 	type ParsedDynamoDBError,
+	parseDynamoDBError,
 	type QueryParams,
 	type QueryResult,
-	parseDynamoDBError,
 	query,
 } from '../services/dynamodb/index.js'
 import { useAppStore } from './app-store.js'

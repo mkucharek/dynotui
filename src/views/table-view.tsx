@@ -37,7 +37,8 @@ export function TableView({ state }: TableViewProps) {
 
 	const tableInfo = tableInfoCache.get(tableName)
 	const currentData = mode === 'query' ? query : scan
-	const { items, isLoading, error, hasMore, scannedCount, filterConditions } = currentData as typeof scan
+	const { items, isLoading, error, hasMore, scannedCount, filterConditions } =
+		currentData as typeof scan
 
 	// Build columns with PK and SK first
 	const columns = useMemo(() => {

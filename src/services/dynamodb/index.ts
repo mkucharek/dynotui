@@ -1,5 +1,11 @@
 export { type ClientConfig, createClient, resetClient } from './client.js'
 export {
+	type DynamoDBErrorType,
+	getErrorDisplayMessage,
+	type ParsedDynamoDBError,
+	parseDynamoDBError,
+} from './errors.js'
+export {
 	buildFilterExpression,
 	createPaginatedQuery,
 	fetchNextQueryPage,
@@ -23,9 +29,3 @@ export {
 	listTables,
 	type TableInfo,
 } from './tables.js'
-export {
-	type DynamoDBErrorType,
-	getErrorDisplayMessage,
-	parseDynamoDBError,
-	type ParsedDynamoDBError,
-} from './errors.js'

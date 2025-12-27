@@ -2,6 +2,7 @@ export type View = 'home' | 'table' | 'item' | 'settings'
 
 export type HomeViewState = {
 	view: 'home'
+	selectedIndex?: number
 }
 
 export type TableViewState = {

@@ -17,7 +17,12 @@ type ActiveField = {
 	field: FieldType
 }
 
-const FILTER_OPERATORS: { value: FilterOperator; label: string; needsValue: boolean; needsValue2: boolean }[] = [
+const FILTER_OPERATORS: {
+	value: FilterOperator
+	label: string
+	needsValue: boolean
+	needsValue2: boolean
+}[] = [
 	{ value: 'eq', label: '=', needsValue: true, needsValue2: false },
 	{ value: 'ne', label: '<>', needsValue: true, needsValue2: false },
 	{ value: 'lt', label: '<', needsValue: true, needsValue2: false },
@@ -49,7 +54,12 @@ function createEmptyCondition(): FilterCondition {
 	return { attribute: '', operator: 'eq', value: '' }
 }
 
-export function FilterBuilder({ conditions, onChange, focused = true, onExit }: FilterBuilderProps) {
+export function FilterBuilder({
+	conditions,
+	onChange,
+	focused = true,
+	onExit,
+}: FilterBuilderProps) {
 	const [activeField, setActiveField] = useState<ActiveField | null>(
 		conditions.length > 0 ? { conditionIndex: 0, field: 'attribute' } : null,
 	)
@@ -234,7 +244,11 @@ export function FilterBuilder({ conditions, onChange, focused = true, onExit }: 
 										placeholder="value"
 									/>
 								) : (
-									<Text color={condition.value !== undefined && condition.value !== '' ? undefined : 'gray'}>
+									<Text
+										color={
+											condition.value !== undefined && condition.value !== '' ? undefined : 'gray'
+										}
+									>
 										{valueToString(condition.value) || 'value'}
 									</Text>
 								)}
@@ -254,7 +268,13 @@ export function FilterBuilder({ conditions, onChange, focused = true, onExit }: 
 											placeholder="value2"
 										/>
 									) : (
-										<Text color={condition.value2 !== undefined && condition.value2 !== '' ? undefined : 'gray'}>
+										<Text
+											color={
+												condition.value2 !== undefined && condition.value2 !== ''
+													? undefined
+													: 'gray'
+											}
+										>
 											{valueToString(condition.value2) || 'value2'}
 										</Text>
 									)}

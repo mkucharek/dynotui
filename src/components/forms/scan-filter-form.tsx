@@ -21,7 +21,9 @@ export function ScanFilterForm({
 	focused = true,
 }: ScanFilterFormProps) {
 	const [conditions, setConditions] = useState<FilterCondition[]>(
-		initialConditions && initialConditions.length > 0 ? initialConditions : [createEmptyCondition()],
+		initialConditions && initialConditions.length > 0
+			? initialConditions
+			: [createEmptyCondition()],
 	)
 
 	const handleSubmit = () => {
@@ -31,7 +33,7 @@ export function ScanFilterForm({
 	}
 
 	useInput(
-		(input, key) => {
+		(_input, key) => {
 			if (!focused) return
 
 			if (key.escape) {

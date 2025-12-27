@@ -178,7 +178,8 @@ export function buildFilterExpression(conditions: FilterCondition[]): {
 		filterExpression: clauses.join(' AND '),
 		expressionAttributeNames,
 		// DynamoDB rejects empty ExpressionAttributeValues, return undefined if empty
-		expressionAttributeValues: Object.keys(expressionAttributeValues).length > 0 ? expressionAttributeValues : undefined,
+		expressionAttributeValues:
+			Object.keys(expressionAttributeValues).length > 0 ? expressionAttributeValues : undefined,
 	}
 }
 
