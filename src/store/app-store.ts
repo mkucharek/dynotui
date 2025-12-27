@@ -50,7 +50,7 @@ export type AppState = {
 const initialTablesState: TablesState = {
 	tables: [],
 	tableInfoCache: new Map(),
-	isLoading: true,
+	isLoading: false,
 	error: null,
 	hasMore: true,
 	lastTableName: undefined,
