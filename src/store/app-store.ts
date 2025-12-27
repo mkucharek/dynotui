@@ -15,6 +15,7 @@ export type TablesState = {
 	error: string | null
 	hasMore: boolean
 	lastTableName: string | undefined
+	initialized: boolean
 }
 
 export type AppState = {
@@ -54,6 +55,7 @@ const initialTablesState: TablesState = {
 	error: null,
 	hasMore: true,
 	lastTableName: undefined,
+	initialized: false,
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -129,6 +131,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 					lastTableName: result.lastTableName,
 					hasMore: result.lastTableName !== undefined,
 					isLoading: false,
+					initialized: true,
 				},
 			})
 		} catch (err) {
@@ -138,6 +141,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 					...currentState,
 					error: err instanceof Error ? err.message : 'Failed to fetch tables',
 					isLoading: false,
+					initialized: true,
 				},
 			})
 		}

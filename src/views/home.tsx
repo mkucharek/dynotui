@@ -18,7 +18,8 @@ type HomeMode = 'browsing' | 'selecting-profile' | 'selecting-region'
 
 export function HomeView() {
 	const { currentView, navigate, profile, region, setProfile, setRegion } = useAppStore()
-	const { tables, isLoading, error, hasMore, fetchTables, fetchNextPage, refresh } = useTables()
+	const { tables, isLoading, error, hasMore, initialized, fetchTables, fetchNextPage, refresh } =
+		useTables()
 	const initialIndex = currentView.view === 'home' ? (currentView.selectedIndex ?? 0) : 0
 	const [selectedIndex, setSelectedIndex] = useState(initialIndex)
 	const [mode, setMode] = useState<HomeMode>('browsing')
@@ -50,11 +51,10 @@ export function HomeView() {
 	}, [regions, region])
 
 	useEffect(() => {
-		// Only fetch if no tables exist (avoids duplicates on back-navigation)
-		if (tables.length === 0 && !isLoading && !error) {
+		if (!initialized && !isLoading) {
 			fetchTables(true)
 		}
-	}, [tables.length, isLoading, error, fetchTables])
+	}, [initialized, isLoading, fetchTables])
 
 	const handleProfileSelect = (value: string) => {
 		setProfile(value === 'default' ? undefined : value)
