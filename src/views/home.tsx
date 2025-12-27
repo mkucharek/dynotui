@@ -1,5 +1,5 @@
 import { Box, useInput } from 'ink'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
 	Footer,
 	Header,
@@ -49,11 +49,13 @@ export function HomeView() {
 		return idx >= 0 ? idx : 0
 	}, [regions, region])
 
+	const hasFetched = useRef(false)
 	useEffect(() => {
-		if (tables.length === 0 && !isLoading && !error) {
+		if (!hasFetched.current) {
+			hasFetched.current = true
 			fetchTables()
 		}
-	}, [tables.length, isLoading, error, fetchTables])
+	}, [fetchTables])
 
 	const handleProfileSelect = (value: string) => {
 		setProfile(value === 'default' ? undefined : value)

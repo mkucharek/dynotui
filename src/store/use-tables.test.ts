@@ -29,7 +29,7 @@ describe('useTables', () => {
 		const { result } = renderHook(() => useTables())
 
 		expect(result.current.tables).toEqual([])
-		expect(result.current.isLoading).toBe(false)
+		expect(result.current.isLoading).toBe(true)
 		expect(result.current.error).toBeNull()
 		expect(result.current.hasMore).toBe(true)
 	})

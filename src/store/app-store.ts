@@ -50,7 +50,7 @@ export type AppState = {
 const initialTablesState: TablesState = {
 	tables: [],
 	tableInfoCache: new Map(),
-	isLoading: false,
+	isLoading: true,
 	error: null,
 	hasMore: true,
 	lastTableName: undefined,
@@ -70,12 +70,14 @@ export const useAppStore = create<AppState>((set, get) => ({
 		set({ profile, tablesState: initialTablesState })
 		const { region, pageSize } = get()
 		saveUserConfig({ profile, region, pageSize })
+		get().fetchTables(true)
 	},
 
 	setRegion: (region) => {
 		set({ region, tablesState: initialTablesState })
 		const { profile, pageSize } = get()
 		saveUserConfig({ profile, region, pageSize })
+		get().fetchTables(true)
 	},
 
 	setPageSize: (pageSize) => {
