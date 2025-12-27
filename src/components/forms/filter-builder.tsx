@@ -1,6 +1,6 @@
 import { Box, Text, useInput } from 'ink'
 import TextInput from 'ink-text-input'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { FilterCondition, FilterOperator } from '../../schemas/query-params.js'
 
 export type FilterBuilderProps = {
@@ -60,6 +60,8 @@ export function FilterBuilder({
 	focused = true,
 	onExit,
 }: FilterBuilderProps) {
+	const idCounter = useRef(conditions.length)
+	const [conditionIds, setConditionIds] = useState<number[]>(() => conditions.map((_, i) => i))
 	const [activeField, setActiveField] = useState<ActiveField | null>(
 		conditions.length > 0 ? { conditionIndex: 0, field: 'attribute' } : null,
 	)
@@ -79,6 +81,8 @@ export function FilterBuilder({
 		const newConditions = [...conditions, createEmptyCondition()]
 		onChange(newConditions)
 		setOperatorIndices([...operatorIndices, 0])
+		const newId = idCounter.current++
+		setConditionIds([...conditionIds, newId])
 		setActiveField({ conditionIndex: newConditions.length - 1, field: 'attribute' })
 	}
 
@@ -86,8 +90,10 @@ export function FilterBuilder({
 		if (conditions.length <= 1) return
 		const newConditions = conditions.filter((_, i) => i !== index)
 		const newOpIndices = operatorIndices.filter((_, i) => i !== index)
+		const newIds = conditionIds.filter((_, i) => i !== index)
 		onChange(newConditions)
 		setOperatorIndices(newOpIndices)
+		setConditionIds(newIds)
 		if (activeField && activeField.conditionIndex >= newConditions.length) {
 			setActiveField({ conditionIndex: Math.max(0, newConditions.length - 1), field: 'attribute' })
 		}
@@ -203,9 +209,10 @@ export function FilterBuilder({
 				const opIdx = operatorIndices[idx] ?? 0
 				const op = FILTER_OPERATORS[opIdx] ?? FILTER_OPERATORS[0]
 				const isActiveCondition = activeField?.conditionIndex === idx
+				const conditionId = conditionIds[idx] ?? idx
 
 				return (
-					<Box key={idx} gap={1}>
+					<Box key={conditionId} gap={1}>
 						<Text dimColor>{idx + 1}.</Text>
 
 						{/* Attribute */}
