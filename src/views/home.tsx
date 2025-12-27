@@ -1,4 +1,4 @@
-import { Box, useInput } from 'ink'
+import { Box, Text, useInput } from 'ink'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
 	Footer,
@@ -148,7 +148,7 @@ export function HomeView() {
 					<Loading message="Loading tables..." />
 				) : error ? (
 					<Box>
-						<Box flexDirection="column">{error}</Box>
+						<Text color="red">{error}</Text>
 					</Box>
 				) : (
 					<TableList
