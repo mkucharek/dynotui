@@ -2,7 +2,6 @@ import { Box, Text, useInput } from 'ink'
 import { useMemo, useState } from 'react'
 import { Footer, Header, InlineSelector, Panel, type SelectorItem } from '../components/index.js'
 import { getAwsRegions, listProfiles } from '../services/aws-config.js'
-import { resetClient } from '../services/dynamodb/index.js'
 import { useAppStore } from '../store/app-store.js'
 
 type SettingsMode = 'browsing' | 'selecting-profile' | 'selecting-region' | 'selecting-pageSize'
@@ -17,35 +16,56 @@ type SettingItem = {
 }
 
 export function SettingsView() {
-	const { profile, region, pageSize, setProfile, setRegion, setPageSize, goBack } = useAppStore()
+	const { configDefaults, setConfigDefault, goBack } = useAppStore()
 	const [mode, setMode] = useState<SettingsMode>('browsing')
 	const [selectedIndex, setSelectedIndex] = useState(0)
 
 	const settings: SettingItem[] = [
 		{
 			key: 'profile',
-			label: 'AWS Profile',
-			value: profile ?? 'default',
+			label: 'Default Profile',
+			value: configDefaults.profile ?? 'not set',
 			mode: 'selecting-profile',
 		},
-		{ key: 'region', label: 'AWS Region', value: region, mode: 'selecting-region' },
-		{ key: 'pageSize', label: 'Page Size', value: String(pageSize), mode: 'selecting-pageSize' },
+		{
+			key: 'region',
+			label: 'Default Region',
+			value: configDefaults.region ?? 'auto',
+			mode: 'selecting-region',
+		},
+		{
+			key: 'pageSize',
+			label: 'Page Size',
+			value: String(configDefaults.pageSize),
+			mode: 'selecting-pageSize',
+		},
 	]
 
 	const profiles = useMemo<SelectorItem[]>(() => {
 		const items = listProfiles()
+		const result: SelectorItem[] = [{ value: '', label: 'not set', description: 'use default' }]
 		if (items.length === 0) {
-			return [{ value: 'default', label: 'default' }]
+			result.push({ value: 'default', label: 'default' })
+		} else {
+			for (const p of items) {
+				result.push({
+					value: p.name,
+					label: p.name,
+					description: p.region,
+				})
+			}
 		}
-		return items.map((p) => ({
-			value: p.name,
-			label: p.name,
-			description: p.region,
-		}))
+		return result
 	}, [])
 
 	const regions = useMemo<SelectorItem[]>(() => {
-		return getAwsRegions().map((r) => ({ value: r, label: r }))
+		const result: SelectorItem[] = [
+			{ value: '', label: 'auto', description: "use profile's region" },
+		]
+		for (const r of getAwsRegions()) {
+			result.push({ value: r, label: r })
+		}
+		return result
 	}, [])
 
 	const pageSizes = useMemo<SelectorItem[]>(() => {
@@ -53,34 +73,34 @@ export function SettingsView() {
 	}, [])
 
 	const currentProfileIndex = useMemo(() => {
-		const idx = profiles.findIndex((p) => p.value === (profile ?? 'default'))
+		if (!configDefaults.profile) return 0 // "not set" is first
+		const idx = profiles.findIndex((p) => p.value === configDefaults.profile)
 		return idx >= 0 ? idx : 0
-	}, [profiles, profile])
+	}, [profiles, configDefaults.profile])
 
 	const currentRegionIndex = useMemo(() => {
-		const idx = regions.findIndex((r) => r.value === region)
+		if (!configDefaults.region) return 0 // "auto" is first
+		const idx = regions.findIndex((r) => r.value === configDefaults.region)
 		return idx >= 0 ? idx : 0
-	}, [regions, region])
+	}, [regions, configDefaults.region])
 
 	const currentPageSizeIndex = useMemo(() => {
-		const idx = pageSizes.findIndex((s) => s.value === String(pageSize))
+		const idx = pageSizes.findIndex((s) => s.value === String(configDefaults.pageSize))
 		return idx >= 0 ? idx : 0
-	}, [pageSizes, pageSize])
+	}, [pageSizes, configDefaults.pageSize])
 
 	const handleProfileSelect = (value: string) => {
-		setProfile(value === 'default' ? undefined : value)
-		resetClient()
+		setConfigDefault('profile', value || undefined)
 		setMode('browsing')
 	}
 
 	const handleRegionSelect = (value: string) => {
-		setRegion(value)
-		resetClient()
+		setConfigDefault('region', value || undefined)
 		setMode('browsing')
 	}
 
 	const handlePageSizeSelect = (value: string) => {
-		setPageSize(Number(value))
+		setConfigDefault('pageSize', Number(value))
 		setMode('browsing')
 	}
 
@@ -120,7 +140,7 @@ export function SettingsView() {
 		if (mode === 'selecting-profile') {
 			return (
 				<InlineSelector
-					title="Select AWS Profile"
+					title="Select Default Profile"
 					items={profiles}
 					initialIndex={currentProfileIndex}
 					onSelect={handleProfileSelect}
@@ -132,7 +152,7 @@ export function SettingsView() {
 		if (mode === 'selecting-region') {
 			return (
 				<InlineSelector
-					title="Select AWS Region"
+					title="Select Default Region"
 					items={regions}
 					initialIndex={currentRegionIndex}
 					onSelect={handleRegionSelect}
@@ -154,7 +174,12 @@ export function SettingsView() {
 		}
 
 		return (
-			<Box flexDirection="column">
+			<Box flexDirection="column" gap={1}>
+				<Box flexDirection="column" marginBottom={1}>
+					<Text dimColor>These values are saved to config and used on next run.</Text>
+					<Text dimColor>They do NOT affect the current session.</Text>
+				</Box>
+
 				{settings.map((setting, index) => (
 					<Box key={setting.key} gap={2}>
 						<Text color={selectedIndex === index ? 'cyan' : undefined}>
@@ -173,7 +198,7 @@ export function SettingsView() {
 			<Header />
 
 			<Box flexGrow={1} padding={1}>
-				<Panel title="Settings" focused flexGrow={1}>
+				<Panel title="Default Settings" focused flexGrow={1}>
 					{renderContent()}
 				</Panel>
 			</Box>

@@ -2,7 +2,9 @@ import { stdout } from 'node:process'
 import { Box, render, useApp, useInput } from 'ink'
 import meow from 'meow'
 import { useEffect } from 'react'
+import { resolveConfig } from './services/config-resolver.js'
 import { useAppStore } from './store/app-store.js'
+import type { RuntimeConfig } from './types/config.js'
 import { HomeView, ItemView, SettingsView, TableView } from './views/index.js'
 
 const cli = meow(
@@ -16,9 +18,14 @@ const cli = meow(
 	  --help         Show this help message
 	  --version      Show version
 
+	Environment Variables
+	  AWS_PROFILE    AWS profile (overridden by --profile)
+	  AWS_REGION     AWS region (overridden by --region)
+
 	Examples
 	  $ dynotui
 	  $ dynotui --profile prod --region eu-west-1
+	  $ AWS_PROFILE=prod dynotui
 `,
 	{
 		importMeta: import.meta,
@@ -35,20 +42,18 @@ const cli = meow(
 	},
 )
 
-function App({ profile, region }: { profile?: string; region?: string }) {
+const resolvedConfig = resolveConfig({
+	cliProfile: cli.flags.profile,
+	cliRegion: cli.flags.region,
+})
+
+function App({ initialConfig }: { initialConfig: RuntimeConfig }) {
 	const { exit } = useApp()
-	const { currentView, setProfile, setRegion, syncFromConfig } = useAppStore()
+	const { currentView, initializeFromResolution } = useAppStore()
 
-	// Sync config from file on mount (handles hot-reload preserving old store)
 	useEffect(() => {
-		syncFromConfig()
-	}, [syncFromConfig])
-
-	// CLI args override saved config
-	useEffect(() => {
-		if (profile) setProfile(profile)
-		if (region) setRegion(region)
-	}, [profile, region, setProfile, setRegion])
+		initializeFromResolution(initialConfig)
+	}, [initializeFromResolution, initialConfig])
 
 	// Global exit with Ctrl+C
 	useInput(
@@ -81,4 +86,4 @@ function App({ profile, region }: { profile?: string; region?: string }) {
 }
 
 stdout.write('\x1Bc')
-render(<App profile={cli.flags.profile} region={cli.flags.region} />)
+render(<App initialConfig={resolvedConfig} />)

@@ -1,12 +1,20 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { useAppStore } from './app-store.js'
+import { DEFAULT_PAGE_SIZE, useAppStore } from './app-store.js'
 
 describe('useAppStore', () => {
 	beforeEach(() => {
 		// Reset store between tests
 		useAppStore.setState({
+			runtimeProfile: { value: undefined, source: 'default' },
+			runtimeRegion: { value: 'us-east-1', source: 'default' },
 			profile: undefined,
 			region: 'us-east-1',
+			pageSize: DEFAULT_PAGE_SIZE,
+			configDefaults: {
+				profile: undefined,
+				region: undefined,
+				pageSize: DEFAULT_PAGE_SIZE,
+			},
 			currentView: { view: 'home' },
 			history: [],
 		})
@@ -22,23 +30,65 @@ describe('useAppStore', () => {
 		})
 	})
 
-	describe('setProfile', () => {
+	describe('setRuntimeProfile', () => {
 		it('updates profile', () => {
-			useAppStore.getState().setProfile('dev')
+			useAppStore.getState().setRuntimeProfile('dev', 'default')
 			expect(useAppStore.getState().profile).toBe('dev')
+			expect(useAppStore.getState().runtimeProfile).toEqual({ value: 'dev', source: 'default' })
 		})
 
 		it('clears profile', () => {
-			useAppStore.getState().setProfile('dev')
-			useAppStore.getState().setProfile(undefined)
+			useAppStore.getState().setRuntimeProfile('dev', 'default')
+			useAppStore.getState().setRuntimeProfile(undefined, 'default')
 			expect(useAppStore.getState().profile).toBeUndefined()
 		})
 	})
 
-	describe('setRegion', () => {
+	describe('setRuntimeRegion', () => {
 		it('updates region', () => {
-			useAppStore.getState().setRegion('eu-west-1')
+			useAppStore.getState().setRuntimeRegion('eu-west-1', 'default')
 			expect(useAppStore.getState().region).toBe('eu-west-1')
+			expect(useAppStore.getState().runtimeRegion).toEqual({
+				value: 'eu-west-1',
+				source: 'default',
+			})
+		})
+	})
+
+	describe('setConfigDefault', () => {
+		it('updates config profile default', () => {
+			useAppStore.getState().setConfigDefault('profile', 'prod')
+			expect(useAppStore.getState().configDefaults.profile).toBe('prod')
+			// Runtime should not be affected
+			expect(useAppStore.getState().profile).toBeUndefined()
+		})
+
+		it('updates config region default', () => {
+			useAppStore.getState().setConfigDefault('region', 'eu-west-1')
+			expect(useAppStore.getState().configDefaults.region).toBe('eu-west-1')
+			// Runtime should not be affected
+			expect(useAppStore.getState().region).toBe('us-east-1')
+		})
+
+		it('updates pageSize in both config and runtime', () => {
+			useAppStore.getState().setConfigDefault('pageSize', 100)
+			expect(useAppStore.getState().configDefaults.pageSize).toBe(100)
+			// pageSize affects runtime too
+			expect(useAppStore.getState().pageSize).toBe(100)
+		})
+	})
+
+	describe('initializeFromResolution', () => {
+		it('sets runtime config from resolved values', () => {
+			useAppStore.getState().initializeFromResolution({
+				profile: { value: 'cli-profile', source: 'cli' },
+				region: { value: 'ap-southeast-1', source: 'env' },
+			})
+			const state = useAppStore.getState()
+			expect(state.profile).toBe('cli-profile')
+			expect(state.region).toBe('ap-southeast-1')
+			expect(state.runtimeProfile).toEqual({ value: 'cli-profile', source: 'cli' })
+			expect(state.runtimeRegion).toEqual({ value: 'ap-southeast-1', source: 'env' })
 		})
 	})
 

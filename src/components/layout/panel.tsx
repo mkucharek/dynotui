@@ -2,7 +2,7 @@ import { Box, type BoxProps, Text } from 'ink'
 import type { ReactNode } from 'react'
 
 export type PanelProps = {
-	title?: string
+	title?: ReactNode
 	children: ReactNode
 	focused?: boolean
 } & Omit<BoxProps, 'borderStyle' | 'borderColor'>
@@ -17,10 +17,14 @@ export function Panel({ title, children, focused = false, ...boxProps }: PanelPr
 		>
 			{title && (
 				<Box marginTop={-1} marginLeft={1}>
-					<Text bold color={focused ? 'cyan' : undefined}>
-						{' '}
-						{title}{' '}
-					</Text>
+					{typeof title === 'string' ? (
+						<Text bold color={focused ? 'cyan' : undefined}>
+							{' '}
+							{title}{' '}
+						</Text>
+					) : (
+						<Text> {title} </Text>
+					)}
 				</Box>
 			)}
 			<Box flexDirection="column" paddingX={1}>

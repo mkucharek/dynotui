@@ -14,8 +14,9 @@ export { Footer, type FooterProps, type KeyBinding } from './layout/footer.js'
 export { Header } from './layout/header.js'
 export { Panel, type PanelProps } from './layout/panel.js'
 export { Loading, type LoadingProps } from './loading.js'
+// Other
+export { ProfileList, type ProfileListProps } from './profile-list.js'
 // Table
 export { type Column, DataTable, type DataTableProps } from './table/data-table.js'
 export { Pagination, type PaginationProps } from './table/pagination.js'
-// Other
 export { TableList, type TableListProps } from './table-list.js'

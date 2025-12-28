@@ -4,6 +4,7 @@ import { getDefaultRegion } from '../services/aws-config.js'
 import type { ParsedDynamoDBError } from '../services/dynamodb/errors.js'
 import { getTableInfo, listTables, type TableInfo } from '../services/dynamodb/index.js'
 import { loadUserConfig, saveUserConfig } from '../services/user-config.js'
+import type { ConfigSource, ResolvedValue, RuntimeConfig } from '../types/config.js'
 import type { ViewState } from '../types/navigation.js'
 
 const savedConfig = loadUserConfig()
@@ -31,42 +32,45 @@ export type TablesState = {
 	initialized: boolean
 }
 
+export type ConfigDefaults = {
+	profile?: string
+	region?: string
+	pageSize: number
+}
+
 export type AppState = {
-	// AWS config
+	runtimeProfile: ResolvedValue<string | undefined>
+	runtimeRegion: ResolvedValue<string>
 	profile: string | undefined
 	region: string
 	pageSize: number
-
-	// Navigation
+	configDefaults: ConfigDefaults
 	currentView: ViewState
 	history: ViewState[]
-
-	// Tables
 	tablesState: TablesState
-
-	// Scan state cache (keyed by tableName)
 	scanStateCache: Map<string, ScanState>
 
-	// Actions
-	setProfile: (profile: string | undefined) => void
-	setRegion: (region: string) => void
-	setPageSize: (pageSize: number) => void
+	setRuntimeProfile: (profile: string | undefined, source: ConfigSource) => void
+	setRuntimeRegion: (region: string, source: ConfigSource) => void
+	setRuntimeProfileAndRegion: (
+		profile: string | undefined,
+		region: string,
+		regionSource: ConfigSource,
+	) => void
+	setConfigDefault: (
+		key: 'profile' | 'region' | 'pageSize',
+		value: string | number | undefined,
+	) => void
+	initializeFromResolution: (config: RuntimeConfig) => void
 	navigate: (view: ViewState, from?: ViewState) => void
 	goBack: () => void
 	canGoBack: () => boolean
-
-	// Tables actions
 	fetchTables: (reset?: boolean) => Promise<void>
 	fetchTableInfo: (tableName: string) => Promise<TableInfo | null>
 	clearTables: () => void
-
-	// Scan state actions
 	getScanState: (tableName: string) => ScanState
 	setScanState: (tableName: string, state: ScanState) => void
 	clearScanState: (tableName: string) => void
-
-	// Config sync
-	syncFromConfig: () => void
 }
 
 const initialTablesState: TablesState = {
@@ -91,34 +95,106 @@ export const createInitialScanState = (): ScanState => ({
 })
 
 export const useAppStore = create<AppState>((set, get) => ({
-	// Initial state
+	runtimeProfile: { value: savedConfig.profile, source: 'config' },
+	runtimeRegion: {
+		value: savedConfig.region ?? getDefaultRegion(savedConfig.profile),
+		source: savedConfig.region ? 'config' : 'default',
+	},
 	profile: savedConfig.profile,
 	region: savedConfig.region ?? getDefaultRegion(savedConfig.profile),
 	pageSize: savedConfig.pageSize ?? DEFAULT_PAGE_SIZE,
+	configDefaults: {
+		profile: savedConfig.profile,
+		region: savedConfig.region,
+		pageSize: savedConfig.pageSize ?? DEFAULT_PAGE_SIZE,
+	},
 	currentView: { view: 'home' },
 	history: [],
 	tablesState: initialTablesState,
 	scanStateCache: new Map(),
 
-	// Actions
-	setProfile: (profile) => {
-		set({ profile, tablesState: initialTablesState, scanStateCache: new Map() })
-		const { region, pageSize } = get()
-		saveUserConfig({ profile, region, pageSize })
+	initializeFromResolution: (config) => {
+		set({
+			runtimeProfile: config.profile,
+			runtimeRegion: config.region,
+			profile: config.profile.value,
+			region: config.region.value,
+		})
+	},
+
+	setRuntimeProfile: (profile, source) => {
+		const newRuntimeProfile: ResolvedValue<string | undefined> = { value: profile, source }
+		const newRegion = getDefaultRegion(profile)
+		const newRuntimeRegion: ResolvedValue<string> = { value: newRegion, source: 'default' }
+
+		set({
+			runtimeProfile: newRuntimeProfile,
+			runtimeRegion: newRuntimeRegion,
+			profile,
+			region: newRegion,
+			tablesState: initialTablesState,
+			scanStateCache: new Map(),
+		})
 		get().fetchTables(true)
 	},
 
-	setRegion: (region) => {
-		set({ region, tablesState: initialTablesState, scanStateCache: new Map() })
-		const { profile, pageSize } = get()
-		saveUserConfig({ profile, region, pageSize })
+	setRuntimeRegion: (region, source) => {
+		const newRuntimeRegion: ResolvedValue<string> = { value: region, source }
+		set({
+			runtimeRegion: newRuntimeRegion,
+			region,
+			tablesState: initialTablesState,
+			scanStateCache: new Map(),
+		})
 		get().fetchTables(true)
 	},
 
-	setPageSize: (pageSize) => {
-		set({ pageSize })
-		const { profile, region } = get()
-		saveUserConfig({ profile, region, pageSize })
+	setRuntimeProfileAndRegion: (profile, region, regionSource) => {
+		const newRuntimeProfile: ResolvedValue<string | undefined> = {
+			value: profile,
+			source: 'default',
+		}
+		const newRuntimeRegion: ResolvedValue<string> = { value: region, source: regionSource }
+
+		set({
+			runtimeProfile: newRuntimeProfile,
+			runtimeRegion: newRuntimeRegion,
+			profile,
+			region,
+			tablesState: initialTablesState,
+			scanStateCache: new Map(),
+		})
+		get().fetchTables(true)
+	},
+
+	setConfigDefault: (key, value) => {
+		const { configDefaults } = get()
+		let newDefaults: ConfigDefaults
+
+		if (key === 'pageSize' && typeof value === 'number') {
+			newDefaults = { ...configDefaults, pageSize: value }
+			set({ configDefaults: newDefaults, pageSize: value })
+		} else if (key === 'profile') {
+			newDefaults = {
+				...configDefaults,
+				profile: typeof value === 'string' ? value : undefined,
+			}
+			set({ configDefaults: newDefaults })
+		} else if (key === 'region') {
+			newDefaults = {
+				...configDefaults,
+				region: typeof value === 'string' ? value : undefined,
+			}
+			set({ configDefaults: newDefaults })
+		} else {
+			return
+		}
+
+		saveUserConfig({
+			profile: newDefaults.profile,
+			region: newDefaults.region,
+			pageSize: newDefaults.pageSize,
+		})
 	},
 
 	navigate: (view, from) =>
@@ -218,22 +294,6 @@ export const useAppStore = create<AppState>((set, get) => ({
 		newCache.delete(tableName)
 		set({ scanStateCache: newCache })
 	},
-
-	syncFromConfig: () => {
-		const config = loadUserConfig()
-		const { profile, region, pageSize } = get()
-		const configRegion = config.region ?? getDefaultRegion(config.profile)
-		const configPageSize = config.pageSize ?? DEFAULT_PAGE_SIZE
-
-		// Only update if different to avoid unnecessary re-renders
-		if (profile !== config.profile || region !== configRegion || pageSize !== configPageSize) {
-			set({
-				profile: config.profile,
-				region: configRegion,
-				pageSize: configPageSize,
-			})
-		}
-	},
 }))
 
 // Selectors
@@ -242,6 +302,13 @@ export const selectConfig = (state: AppState) => ({
 	region: state.region,
 	pageSize: state.pageSize,
 })
+
+export const selectRuntimeConfig = (state: AppState) => ({
+	runtimeProfile: state.runtimeProfile,
+	runtimeRegion: state.runtimeRegion,
+})
+
+export const selectConfigDefaults = (state: AppState) => state.configDefaults
 
 export const selectCurrentView = (state: AppState) => state.currentView
 export const selectCanGoBack = (state: AppState) => state.history.length > 0
