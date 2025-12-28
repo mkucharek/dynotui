@@ -39,52 +39,35 @@ export type ConfigDefaults = {
 }
 
 export type AppState = {
-	// Runtime AWS config (session-only, with source tracking)
 	runtimeProfile: ResolvedValue<string | undefined>
 	runtimeRegion: ResolvedValue<string>
-
-	// Computed values for convenience (derived from runtime)
 	profile: string | undefined
 	region: string
 	pageSize: number
-
-	// Config defaults (persisted to file)
 	configDefaults: ConfigDefaults
-
-	// Navigation
 	currentView: ViewState
 	history: ViewState[]
-
-	// Tables
 	tablesState: TablesState
-
-	// Scan state cache (keyed by tableName)
 	scanStateCache: Map<string, ScanState>
 
-	// Runtime actions (session only, no save)
 	setRuntimeProfile: (profile: string | undefined, source: ConfigSource) => void
 	setRuntimeRegion: (region: string, source: ConfigSource) => void
-
-	// Config defaults actions (save to file, no runtime effect)
+	setRuntimeProfileAndRegion: (
+		profile: string | undefined,
+		region: string,
+		regionSource: ConfigSource,
+	) => void
 	setConfigDefault: (
 		key: 'profile' | 'region' | 'pageSize',
 		value: string | number | undefined,
 	) => void
-
-	// Initialize from resolved config (called once at startup)
 	initializeFromResolution: (config: RuntimeConfig) => void
-
-	// Navigation
 	navigate: (view: ViewState, from?: ViewState) => void
 	goBack: () => void
 	canGoBack: () => boolean
-
-	// Tables actions
 	fetchTables: (reset?: boolean) => Promise<void>
 	fetchTableInfo: (tableName: string) => Promise<TableInfo | null>
 	clearTables: () => void
-
-	// Scan state actions
 	getScanState: (tableName: string) => ScanState
 	setScanState: (tableName: string, state: ScanState) => void
 	clearScanState: (tableName: string) => void
@@ -112,31 +95,24 @@ export const createInitialScanState = (): ScanState => ({
 })
 
 export const useAppStore = create<AppState>((set, get) => ({
-	// Initial state - will be overwritten by initializeFromResolution
 	runtimeProfile: { value: savedConfig.profile, source: 'config' },
 	runtimeRegion: {
 		value: savedConfig.region ?? getDefaultRegion(savedConfig.profile),
 		source: savedConfig.region ? 'config' : 'default',
 	},
-
-	// Computed convenience values
 	profile: savedConfig.profile,
 	region: savedConfig.region ?? getDefaultRegion(savedConfig.profile),
 	pageSize: savedConfig.pageSize ?? DEFAULT_PAGE_SIZE,
-
-	// Config defaults from file
 	configDefaults: {
 		profile: savedConfig.profile,
 		region: savedConfig.region,
 		pageSize: savedConfig.pageSize ?? DEFAULT_PAGE_SIZE,
 	},
-
 	currentView: { view: 'home' },
 	history: [],
 	tablesState: initialTablesState,
 	scanStateCache: new Map(),
 
-	// Initialize from resolved config (called once at startup)
 	initializeFromResolution: (config) => {
 		set({
 			runtimeProfile: config.profile,
@@ -146,10 +122,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 		})
 	},
 
-	// Runtime actions - session only, no save
 	setRuntimeProfile: (profile, source) => {
 		const newRuntimeProfile: ResolvedValue<string | undefined> = { value: profile, source }
-		// When profile changes, also update region to profile's default
 		const newRegion = getDefaultRegion(profile)
 		const newRuntimeRegion: ResolvedValue<string> = { value: newRegion, source: 'default' }
 
@@ -175,14 +149,30 @@ export const useAppStore = create<AppState>((set, get) => ({
 		get().fetchTables(true)
 	},
 
-	// Config defaults actions - save to file, no runtime effect
+	setRuntimeProfileAndRegion: (profile, region, regionSource) => {
+		const newRuntimeProfile: ResolvedValue<string | undefined> = {
+			value: profile,
+			source: 'default',
+		}
+		const newRuntimeRegion: ResolvedValue<string> = { value: region, source: regionSource }
+
+		set({
+			runtimeProfile: newRuntimeProfile,
+			runtimeRegion: newRuntimeRegion,
+			profile,
+			region,
+			tablesState: initialTablesState,
+			scanStateCache: new Map(),
+		})
+		get().fetchTables(true)
+	},
+
 	setConfigDefault: (key, value) => {
 		const { configDefaults } = get()
 		let newDefaults: ConfigDefaults
 
 		if (key === 'pageSize' && typeof value === 'number') {
 			newDefaults = { ...configDefaults, pageSize: value }
-			// pageSize is special - it affects runtime too
 			set({ configDefaults: newDefaults, pageSize: value })
 		} else if (key === 'profile') {
 			newDefaults = {

@@ -42,7 +42,6 @@ const cli = meow(
 	},
 )
 
-// Resolve config with priority: CLI > env vars > config file > defaults
 const resolvedConfig = resolveConfig({
 	cliProfile: cli.flags.profile,
 	cliRegion: cli.flags.region,
@@ -52,7 +51,6 @@ function App({ initialConfig }: { initialConfig: RuntimeConfig }) {
 	const { exit } = useApp()
 	const { currentView, initializeFromResolution } = useAppStore()
 
-	// Initialize store with resolved config on mount
 	useEffect(() => {
 		initializeFromResolution(initialConfig)
 	}, [initializeFromResolution, initialConfig])

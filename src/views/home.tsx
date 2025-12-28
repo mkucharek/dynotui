@@ -10,10 +10,16 @@ import {
 	type SelectorItem,
 	TableList,
 } from '../components/index.js'
-import { type AwsProfile, getAwsRegions, listProfiles } from '../services/aws-config.js'
+import {
+	type AwsProfile,
+	getAwsRegions,
+	getDefaultRegion,
+	listProfiles,
+} from '../services/aws-config.js'
 import { resetClient } from '../services/dynamodb/index.js'
 import { useAppStore } from '../store/app-store.js'
 import { useTables } from '../store/use-tables.js'
+import { getSourceLabel } from '../types/config.js'
 
 type HomeTab = 'profiles' | 'tables'
 type HomeMode = 'browsing' | 'selecting-region-behavior' | 'selecting-region' | 'info-modal'
@@ -39,7 +45,7 @@ function TabBar({ activeTab }: TabBarProps) {
 }
 
 export function HomeView() {
-	const { currentView, navigate, profile, region, setRuntimeProfile, setRuntimeRegion } =
+	const { currentView, navigate, profile, region, setRuntimeProfile, setRuntimeProfileAndRegion } =
 		useAppStore()
 	const { tables, isLoading, error, hasMore, initialized, fetchTables, fetchNextPage, refresh } =
 		useTables()
@@ -59,10 +65,9 @@ export function HomeView() {
 		return items
 	}, [])
 
-	// Region behavior options for the two-step profile selection
 	const regionBehaviorOptions = useMemo<SelectorItem[]>(() => {
 		if (!pendingProfile) return []
-		const profileRegion = pendingProfile.region ?? 'us-east-1'
+		const profileRegion = getDefaultRegion(pendingProfile.name)
 		return [
 			{
 				value: 'profile-default',
@@ -79,7 +84,6 @@ export function HomeView() {
 		]
 	}, [pendingProfile, region])
 
-	// All AWS regions for region selector
 	const regions = useMemo<SelectorItem[]>(() => {
 		return getAwsRegions().map((r) => ({ value: r, label: r }))
 	}, [])
@@ -89,7 +93,6 @@ export function HomeView() {
 		return idx >= 0 ? idx : 0
 	}, [regions, region])
 
-	// Find current profile index
 	const currentProfileIndex = useMemo(() => {
 		const idx = profiles.findIndex((p) => p.name === (profile ?? 'default'))
 		return idx >= 0 ? idx : 0
@@ -101,13 +104,11 @@ export function HomeView() {
 		}
 	}, [initialized, isLoading, fetchTables])
 
-	// Set profile selected index to current profile on mount
 	useEffect(() => {
 		setProfileSelectedIndex(currentProfileIndex)
 	}, [currentProfileIndex])
 
 	const handleProfileEnter = (selectedProfile: AwsProfile) => {
-		// Start two-step flow: show region behavior selector
 		setPendingProfile(selectedProfile)
 		setMode('selecting-region-behavior')
 	}
@@ -118,7 +119,6 @@ export function HomeView() {
 		const newProfile = pendingProfile.name === 'default' ? undefined : pendingProfile.name
 
 		if (value === 'profile-default') {
-			// Use profile's default region
 			setRuntimeProfile(newProfile, 'default')
 			resetClient()
 			setTableSelectedIndex(0)
@@ -126,16 +126,13 @@ export function HomeView() {
 			setMode('browsing')
 			setActiveTab('tables')
 		} else if (value === 'keep-current') {
-			// Keep current region - set profile first, then override region
-			setRuntimeProfile(newProfile, 'default')
-			setRuntimeRegion(region, 'default')
+			setRuntimeProfileAndRegion(newProfile, region, 'default')
 			resetClient()
 			setTableSelectedIndex(0)
 			setPendingProfile(null)
 			setMode('browsing')
 			setActiveTab('tables')
 		} else if (value === 'choose-region') {
-			// Show region selector (keep pendingProfile for next step)
 			setMode('selecting-region')
 		}
 	}
@@ -144,8 +141,7 @@ export function HomeView() {
 		if (!pendingProfile) return
 
 		const newProfile = pendingProfile.name === 'default' ? undefined : pendingProfile.name
-		setRuntimeProfile(newProfile, 'default')
-		setRuntimeRegion(selectedRegion, 'default')
+		setRuntimeProfileAndRegion(newProfile, selectedRegion, 'default')
 		resetClient()
 		setTableSelectedIndex(0)
 		setPendingProfile(null)
@@ -154,7 +150,6 @@ export function HomeView() {
 	}
 
 	const handleRegionCancel = () => {
-		// Go back to region behavior selection
 		setMode('selecting-region-behavior')
 	}
 
@@ -166,7 +161,6 @@ export function HomeView() {
 	useInput((input, key) => {
 		if (mode !== 'browsing') return
 
-		// Tab switching
 		if (input === '1') {
 			setActiveTab('profiles')
 			return
@@ -175,20 +169,14 @@ export function HomeView() {
 			setActiveTab('tables')
 			return
 		}
-
-		// Info modal
 		if (input === '?') {
 			setMode('info-modal')
 			return
 		}
-
-		// Settings navigation
 		if (input === 's') {
 			navigate({ view: 'settings' }, { view: 'home', selectedIndex: tableSelectedIndex })
 			return
 		}
-
-		// Tables tab specific
 		if (activeTab === 'tables') {
 			if (input === 'j' || key.downArrow) {
 				setTableSelectedIndex((i) => Math.min(i + 1, tables.length - 1))
@@ -205,8 +193,6 @@ export function HomeView() {
 				)
 			}
 		}
-
-		// Profiles tab specific - navigation handled by ProfileList component
 	})
 
 	const tablesBindings = [
@@ -231,7 +217,6 @@ export function HomeView() {
 	]
 
 	const renderContent = () => {
-		// Region behavior selection (step 2 of profile selection)
 		if (mode === 'selecting-region-behavior' && pendingProfile) {
 			return (
 				<InlineSelector
@@ -243,8 +228,6 @@ export function HomeView() {
 				/>
 			)
 		}
-
-		// Region selection (step 3 if "Choose region" was selected)
 		if (mode === 'selecting-region' && pendingProfile) {
 			return (
 				<InlineSelector
@@ -256,13 +239,9 @@ export function HomeView() {
 				/>
 			)
 		}
-
-		// Info modal
 		if (mode === 'info-modal') {
 			return <InfoModalContent onClose={() => setMode('browsing')} />
 		}
-
-		// Profiles tab
 		if (activeTab === 'profiles') {
 			return (
 				<ProfileList
@@ -275,8 +254,6 @@ export function HomeView() {
 				/>
 			)
 		}
-
-		// Tables tab (default)
 		return (
 			<>
 				{isLoading && tables.length === 0 ? (
@@ -330,7 +307,6 @@ export function HomeView() {
 	)
 }
 
-// Info Modal Content Component
 function InfoModalContent({ onClose }: { onClose: () => void }) {
 	const { runtimeProfile, runtimeRegion, configDefaults } = useAppStore()
 
@@ -339,21 +315,6 @@ function InfoModalContent({ onClose }: { onClose: () => void }) {
 			onClose()
 		}
 	})
-
-	const getSourceLabel = (source: string) => {
-		switch (source) {
-			case 'cli':
-				return 'CLI argument'
-			case 'env':
-				return 'Environment variable'
-			case 'config':
-				return 'Config file'
-			case 'default':
-				return 'Default'
-			default:
-				return source
-		}
-	}
 
 	return (
 		<Box flexDirection="column" gap={1}>
