@@ -20,7 +20,7 @@ describe('Panel', () => {
 			</Panel>,
 		)
 		const frame = lastFrame() ?? ''
+		// Title overlaps border via negative margin, may not render in test
 		expect(frame).toContain('Content')
-		expect(frame.includes('Tables') || frame.includes('Content')).toBe(true)
 	})
 })

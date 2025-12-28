@@ -75,7 +75,7 @@ export function SidebarSection({
 				</Text>
 				{items.length > 0 && <Text dimColor> ({items.length})</Text>}
 			</Box>
-			<Text color={focused ? 'cyan' : 'gray'}>{'─'.repeat(24)}</Text>
+			<Text color={focused ? 'cyan' : 'gray'}>{'─'.repeat(26)}</Text>
 			<Box flexDirection="column" flexGrow={1} overflowY="hidden">
 				{items.length === 0 ? (
 					<Text dimColor>No items</Text>

@@ -1,5 +1,4 @@
 import { Box, Text, useInput } from 'ink'
-import { useEffect } from 'react'
 import { ItemDetail, Panel } from '../components/index.js'
 import { useAppStore } from '../store/app-store.js'
 import type { ItemViewState } from '../types/navigation.js'
@@ -10,7 +9,7 @@ export type ItemViewProps = {
 
 export function ItemView({ state }: ItemViewProps) {
 	const { tableName, item } = state
-	const { goBack, focusedPanel, setFocusedPanel } = useAppStore()
+	const { goBack, focusedPanel } = useAppStore()
 
 	const isMainFocused = focusedPanel === 'main'
 
@@ -22,10 +21,6 @@ export function ItemView({ state }: ItemViewProps) {
 		},
 		{ isActive: isMainFocused },
 	)
-
-	useEffect(() => {
-		setFocusedPanel('main')
-	}, [setFocusedPanel])
 
 	return (
 		<Box flexDirection="column" flexGrow={1} padding={1} gap={1}>

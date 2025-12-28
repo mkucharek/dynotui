@@ -205,6 +205,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 		set((state) => ({
 			history: [...state.history, from ?? state.currentView],
 			currentView: view,
+			focusedPanel: view.view === 'table' || view.view === 'item' ? 'main' : state.focusedPanel,
 		})),
 
 	goBack: () =>

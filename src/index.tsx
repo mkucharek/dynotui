@@ -1,7 +1,7 @@
 import { stdout } from 'node:process'
 import { Box, render, Text, useApp, useInput, useStdout } from 'ink'
 import meow from 'meow'
-import { useEffect, useMemo } from 'react'
+import { useEffect } from 'react'
 import { Footer, Sidebar, SplitLayout } from './components/index.js'
 import { resolveConfig } from './services/config-resolver.js'
 import { useAppStore } from './store/app-store.js'
@@ -93,7 +93,7 @@ function App({ initialConfig }: { initialConfig: RuntimeConfig }) {
 		initializeFromResolution,
 	} = useAppStore()
 
-	const terminalHeight = useMemo(() => stdoutStream?.rows ?? 24, [stdoutStream?.rows])
+	const terminalHeight = stdoutStream?.rows ?? 24
 
 	useEffect(() => {
 		initializeFromResolution(initialConfig)

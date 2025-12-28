@@ -27,7 +27,7 @@ type Mode = 'scan' | 'query' | 'query-form' | 'scan-filter-form'
 export function TableView({ state, maxHeight = 20 }: TableViewProps) {
 	const { tableName } = state
 	const tableMaxRows = Math.max(5, maxHeight - 9)
-	const { navigate, goBack, focusedPanel, setFocusedPanel } = useAppStore()
+	const { navigate, goBack, focusedPanel } = useAppStore()
 	const { fetchTableInfo, tableInfoCache } = useTables()
 	const scan = useScan(tableName)
 	const query = useQuery(tableName)
@@ -127,10 +127,6 @@ export function TableView({ state, maxHeight = 20 }: TableViewProps) {
 		{ isActive: isMainFocused && (mode === 'scan' || mode === 'query') },
 	)
 
-	useEffect(() => {
-		setFocusedPanel('main')
-	}, [setFocusedPanel])
-
 	const handleQuerySubmit = (params: QueryParams) => {
 		setMode('query')
 		setSelectedIndex(0)
@@ -209,7 +205,7 @@ export function TableView({ state, maxHeight = 20 }: TableViewProps) {
 
 			{/* Results panel */}
 			{(mode === 'scan' || mode === 'query') && (
-				<Panel title="[0] Results" focused={isMainFocused} flexGrow={1}>
+				<Panel title="Results" focused={isMainFocused} flexGrow={1}>
 					{isLoading && items.length === 0 ? (
 						<Loading message={mode === 'scan' ? 'Scanning...' : 'Querying...'} />
 					) : error ? (
@@ -222,14 +218,8 @@ export function TableView({ state, maxHeight = 20 }: TableViewProps) {
 							columns={columns}
 							selectedIndex={selectedIndex}
 							onSelect={setSelectedIndex}
-							onEnter={(item) =>
-								navigate(
-									{ view: 'item', tableName, item },
-									{ view: 'table', tableName, mode, selectedIndex },
-								)
-							}
 							maxHeight={tableMaxRows}
-							focused={isMainFocused}
+							focused={false}
 						/>
 					)}
 				</Panel>
