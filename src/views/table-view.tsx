@@ -3,8 +3,6 @@ import { useEffect, useMemo, useState } from 'react'
 import {
 	type Column,
 	DataTable,
-	Footer,
-	Header,
 	Loading,
 	Pagination,
 	Panel,
@@ -21,13 +19,15 @@ import type { TableViewState } from '../types/navigation.js'
 
 export type TableViewProps = {
 	state: TableViewState
+	maxHeight?: number
 }
 
 type Mode = 'scan' | 'query' | 'query-form' | 'scan-filter-form'
 
-export function TableView({ state }: TableViewProps) {
+export function TableView({ state, maxHeight = 20 }: TableViewProps) {
 	const { tableName } = state
-	const { navigate, goBack } = useAppStore()
+	const tableMaxRows = Math.max(5, maxHeight - 9)
+	const { navigate, goBack, focusedPanel, setFocusedPanel } = useAppStore()
 	const { fetchTableInfo, tableInfoCache } = useTables()
 	const scan = useScan(tableName)
 	const query = useQuery(tableName)
@@ -38,8 +38,8 @@ export function TableView({ state }: TableViewProps) {
 
 	const tableInfo = tableInfoCache.get(tableName)
 	const currentData = mode === 'query' ? query : scan
-	const { items, isLoading, error, hasMore, scannedCount, filterConditions } =
-		currentData as typeof scan
+	const { items, isLoading, error, hasMore, scannedCount } = currentData
+	const filterConditions = scan.filterConditions
 
 	// Build columns with PK and SK first
 	const columns = useMemo(() => {
@@ -83,6 +83,8 @@ export function TableView({ state }: TableViewProps) {
 		}
 	}, [mode, scan.initialized, scan.isLoading, scan.refresh])
 
+	const isMainFocused = focusedPanel === 'main'
+
 	useInput(
 		(input, key) => {
 			if (key.escape) {
@@ -122,8 +124,12 @@ export function TableView({ state }: TableViewProps) {
 				)
 			}
 		},
-		{ isActive: mode === 'scan' || mode === 'query' },
+		{ isActive: isMainFocused && (mode === 'scan' || mode === 'query') },
 	)
+
+	useEffect(() => {
+		setFocusedPanel('main')
+	}, [setFocusedPanel])
 
 	const handleQuerySubmit = (params: QueryParams) => {
 		setMode('query')
@@ -146,130 +152,104 @@ export function TableView({ state }: TableViewProps) {
 	}
 
 	return (
-		<Box flexDirection="column" flexGrow={1}>
-			<Header />
-
-			<Box flexGrow={1} padding={1} flexDirection="column" gap={1}>
-				{/* Table info bar */}
-				<Box gap={2}>
-					<Text bold color="cyan">
-						{tableName}
-					</Text>
-					{tableInfo && (
-						<>
-							<Text dimColor>
-								PK: <Text color="yellow">{tableInfo.partitionKey}</Text>
-							</Text>
-							{tableInfo.sortKey && (
-								<Text dimColor>
-									SK: <Text color="yellow">{tableInfo.sortKey}</Text>
-								</Text>
-							)}
-							<Text dimColor>
-								Items: <Text color="yellow">{tableInfo.itemCount?.toLocaleString()}</Text>
-							</Text>
-						</>
-					)}
-					<Text dimColor>
-						Mode:{' '}
-						<Text color={mode === 'scan' || mode === 'scan-filter-form' ? 'green' : 'blue'}>
-							{mode === 'query-form' ? 'query' : mode === 'scan-filter-form' ? 'scan' : mode}
+		<Box flexDirection="column" flexGrow={1} padding={1} gap={1} overflowY="hidden">
+			{/* Table info bar */}
+			<Box gap={2}>
+				<Text bold color="cyan">
+					{tableName}
+				</Text>
+				{tableInfo && (
+					<>
+						<Text dimColor>
+							PK: <Text color="yellow">{tableInfo.partitionKey}</Text>
 						</Text>
-						{filterConditions.length > 0 && mode === 'scan' && (
-							<Text color="yellow"> ({filterConditions.length} filters)</Text>
+						{tableInfo.sortKey && (
+							<Text dimColor>
+								SK: <Text color="yellow">{tableInfo.sortKey}</Text>
+							</Text>
 						)}
+						<Text dimColor>
+							Items: <Text color="yellow">{tableInfo.itemCount?.toLocaleString()}</Text>
+						</Text>
+					</>
+				)}
+				<Text dimColor>
+					Mode:{' '}
+					<Text color={mode === 'scan' || mode === 'scan-filter-form' ? 'green' : 'blue'}>
+						{mode === 'query-form' ? 'query' : mode === 'scan-filter-form' ? 'scan' : mode}
 					</Text>
-				</Box>
-
-				{/* Query form */}
-				{mode === 'query-form' && tableInfo && (
-					<Panel title="Query">
-						<QueryForm
-							partitionKeyName={tableInfo.partitionKey}
-							sortKeyName={tableInfo.sortKey}
-							onSubmit={handleQuerySubmit}
-							onCancel={handleQueryCancel}
-						/>
-					</Panel>
-				)}
-
-				{/* Scan filter form */}
-				{mode === 'scan-filter-form' && (
-					<Panel title="Scan Filter">
-						<ScanFilterForm
-							initialConditions={filterConditions}
-							onSubmit={handleScanFilterSubmit}
-							onCancel={handleScanFilterCancel}
-						/>
-					</Panel>
-				)}
-
-				{/* Results panel */}
-				{(mode === 'scan' || mode === 'query') && (
-					<Panel title="Results" focused flexGrow={1}>
-						{isLoading && items.length === 0 ? (
-							<Loading message={mode === 'scan' ? 'Scanning...' : 'Querying...'} />
-						) : error ? (
-							<Text color="red">{getErrorDisplayMessage(error)}</Text>
-						) : items.length === 0 ? (
-							<Text dimColor>No items found</Text>
-						) : (
-							<DataTable
-								data={items}
-								columns={columns}
-								selectedIndex={selectedIndex}
-								onSelect={setSelectedIndex}
-								onEnter={(item) =>
-									navigate(
-										{ view: 'item', tableName, item },
-										{ view: 'table', tableName, mode, selectedIndex },
-									)
-								}
-								focused={false}
-							/>
-						)}
-					</Panel>
-				)}
-
-				{/* Pagination */}
-				{(mode === 'scan' || mode === 'query') && items.length > 0 && (
-					<Pagination
-						hasMore={hasMore}
-						isLoading={isLoading}
-						scannedCount={scannedCount}
-						onNextPage={() => (mode === 'scan' ? scan.fetchNextPage() : query.fetchNextPage())}
-						onRefresh={() =>
-							mode === 'scan'
-								? scan.refresh()
-								: query.queryParams && query.executeQuery(query.queryParams, true)
-						}
-						focused={false}
-					/>
-				)}
+					{filterConditions.length > 0 && mode === 'scan' && (
+						<Text color="yellow"> ({filterConditions.length} filters)</Text>
+					)}
+				</Text>
 			</Box>
 
-			<Footer
-				bindings={
-					mode === 'scan'
-						? [
-								{ key: 'Enter', label: 'View' },
-								{ key: 's', label: 'Scan' },
-								{ key: 'f', label: 'Filter' },
-								{ key: 'q', label: 'Query' },
-								{ key: 'n', label: 'More' },
-								{ key: 'r', label: 'Refresh' },
-								{ key: 'Esc', label: 'Back' },
-							]
-						: [
-								{ key: 'Enter', label: 'View' },
-								{ key: 's', label: 'Scan' },
-								{ key: 'q', label: 'Query' },
-								{ key: 'n', label: 'More' },
-								{ key: 'r', label: 'Refresh' },
-								{ key: 'Esc', label: 'Back' },
-							]
-				}
-			/>
+			{/* Query form */}
+			{mode === 'query-form' && tableInfo && (
+				<Panel title="Query">
+					<QueryForm
+						partitionKeyName={tableInfo.partitionKey}
+						sortKeyName={tableInfo.sortKey}
+						onSubmit={handleQuerySubmit}
+						onCancel={handleQueryCancel}
+					/>
+				</Panel>
+			)}
+
+			{/* Scan filter form */}
+			{mode === 'scan-filter-form' && (
+				<Panel title="Scan Filter">
+					<ScanFilterForm
+						initialConditions={filterConditions}
+						onSubmit={handleScanFilterSubmit}
+						onCancel={handleScanFilterCancel}
+					/>
+				</Panel>
+			)}
+
+			{/* Results panel */}
+			{(mode === 'scan' || mode === 'query') && (
+				<Panel title="[0] Results" focused={isMainFocused} flexGrow={1}>
+					{isLoading && items.length === 0 ? (
+						<Loading message={mode === 'scan' ? 'Scanning...' : 'Querying...'} />
+					) : error ? (
+						<Text color="red">{getErrorDisplayMessage(error)}</Text>
+					) : items.length === 0 ? (
+						<Text dimColor>No items found</Text>
+					) : (
+						<DataTable
+							data={items}
+							columns={columns}
+							selectedIndex={selectedIndex}
+							onSelect={setSelectedIndex}
+							onEnter={(item) =>
+								navigate(
+									{ view: 'item', tableName, item },
+									{ view: 'table', tableName, mode, selectedIndex },
+								)
+							}
+							maxHeight={tableMaxRows}
+							focused={isMainFocused}
+						/>
+					)}
+				</Panel>
+			)}
+
+			{/* Pagination */}
+			{(mode === 'scan' || mode === 'query') && items.length > 0 && (
+				<Pagination
+					hasMore={hasMore}
+					isLoading={isLoading}
+					scannedCount={scannedCount}
+					onNextPage={() => (mode === 'scan' ? scan.fetchNextPage() : query.fetchNextPage())}
+					onRefresh={() =>
+						mode === 'scan'
+							? scan.refresh()
+							: query.queryParams && query.executeQuery(query.queryParams, true)
+					}
+					focused={false}
+				/>
+			)}
 		</Box>
 	)
 }

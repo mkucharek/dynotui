@@ -9,6 +9,9 @@ import type { ViewState } from '../types/navigation.js'
 
 const savedConfig = loadUserConfig()
 
+export type FocusedPanel = 'sidebar' | 'main'
+export type SidebarSection = 'profiles' | 'regions' | 'tables'
+
 export const DEFAULT_PAGE_SIZE = 25
 
 export type ScanState = {
@@ -43,6 +46,8 @@ export type AppState = {
 	history: ViewState[]
 	tablesState: TablesState
 	scanStateCache: Map<string, ScanState>
+	focusedPanel: FocusedPanel
+	sidebarSection: SidebarSection
 
 	setRuntimeProfile: (profile: string | undefined, source: ConfigSource) => void
 	setRuntimeRegion: (region: string, source: ConfigSource) => void
@@ -65,6 +70,9 @@ export type AppState = {
 	getScanState: (tableName: string) => ScanState
 	setScanState: (tableName: string, state: ScanState) => void
 	clearScanState: (tableName: string) => void
+	setFocusedPanel: (panel: FocusedPanel) => void
+	setSidebarSection: (section: SidebarSection) => void
+	toggleFocusedPanel: () => void
 }
 
 const initialTablesState: TablesState = {
@@ -106,6 +114,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 	history: [],
 	tablesState: initialTablesState,
 	scanStateCache: new Map(),
+	focusedPanel: 'sidebar',
+	sidebarSection: 'tables',
 
 	initializeFromResolution: (config) => {
 		set({
@@ -288,4 +298,13 @@ export const useAppStore = create<AppState>((set, get) => ({
 		newCache.delete(tableName)
 		set({ scanStateCache: newCache })
 	},
+
+	setFocusedPanel: (panel) => set({ focusedPanel: panel }),
+
+	setSidebarSection: (section) => set({ sidebarSection: section, focusedPanel: 'sidebar' }),
+
+	toggleFocusedPanel: () =>
+		set((state) => ({
+			focusedPanel: state.focusedPanel === 'sidebar' ? 'main' : 'sidebar',
+		})),
 }))

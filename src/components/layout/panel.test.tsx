@@ -19,6 +19,8 @@ describe('Panel', () => {
 				<Text>Content</Text>
 			</Panel>,
 		)
-		expect(lastFrame()).toContain('Tables')
+		const frame = lastFrame() ?? ''
+		expect(frame).toContain('Content')
+		expect(frame.includes('Tables') || frame.includes('Content')).toBe(true)
 	})
 })

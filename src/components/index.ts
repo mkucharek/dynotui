@@ -12,9 +12,16 @@ export { ItemDetail, type ItemDetailProps } from './item-detail.js'
 export { Footer, type FooterProps, type KeyBinding } from './layout/footer.js'
 export { Header } from './layout/header.js'
 export { Panel, type PanelProps } from './layout/panel.js'
+export { SplitLayout, type SplitLayoutProps } from './layout/split-layout.js'
 export { Loading, type LoadingProps } from './loading.js'
 // Other
 export { ProfileList, type ProfileListProps } from './profile-list.js'
+export {
+	Sidebar,
+	type SidebarItem,
+	SidebarSection,
+	type SidebarSectionProps,
+} from './sidebar/index.js'
 // Table
 export { type Column, DataTable, type DataTableProps } from './table/data-table.js'
 export { Pagination, type PaginationProps } from './table/pagination.js'
