@@ -4,7 +4,7 @@ import { getDefaultRegion } from '../services/aws-config.js'
 import type { ParsedDynamoDBError } from '../services/dynamodb/errors.js'
 import { getTableInfo, listTables, type TableInfo } from '../services/dynamodb/index.js'
 import { loadUserConfig, saveUserConfig } from '../services/user-config.js'
-import type { ConfigSource, ResolvedValue, RuntimeConfig } from '../types/config.js'
+import type { ConfigDefaults, ConfigSource, ResolvedValue, RuntimeConfig } from '../types/config.js'
 import type { ViewState } from '../types/navigation.js'
 
 const savedConfig = loadUserConfig()
@@ -30,12 +30,6 @@ export type TablesState = {
 	hasMore: boolean
 	lastTableName: string | undefined
 	initialized: boolean
-}
-
-export type ConfigDefaults = {
-	profile?: string
-	region?: string
-	pageSize: number
 }
 
 export type AppState = {
@@ -295,20 +289,3 @@ export const useAppStore = create<AppState>((set, get) => ({
 		set({ scanStateCache: newCache })
 	},
 }))
-
-// Selectors
-export const selectConfig = (state: AppState) => ({
-	profile: state.profile,
-	region: state.region,
-	pageSize: state.pageSize,
-})
-
-export const selectRuntimeConfig = (state: AppState) => ({
-	runtimeProfile: state.runtimeProfile,
-	runtimeRegion: state.runtimeRegion,
-})
-
-export const selectConfigDefaults = (state: AppState) => state.configDefaults
-
-export const selectCurrentView = (state: AppState) => state.currentView
-export const selectCanGoBack = (state: AppState) => state.history.length > 0

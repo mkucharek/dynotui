@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createPaginatedScan, fetchNextPage, scan } from './scan.js'
+import { scan } from './scan.js'
 
 vi.mock('./client.js', () => ({
 	createClient: vi.fn(() => ({
@@ -60,53 +60,5 @@ describe('scan', () => {
 
 		expect(result.items).toEqual([])
 		expect(result.count).toBe(0)
-	})
-})
-
-describe('createPaginatedScan', () => {
-	it('creates initial state', () => {
-		const state = createPaginatedScan({ tableName: 'test' })
-
-		expect(state.params.tableName).toBe('test')
-		expect(state.hasMore).toBe(true)
-		expect(state.lastEvaluatedKey).toBeUndefined()
-	})
-})
-
-describe('fetchNextPage', () => {
-	beforeEach(() => {
-		vi.clearAllMocks()
-	})
-
-	it('fetches next page and updates state', async () => {
-		const mockSend = vi.fn().mockResolvedValue({
-			Items: [{ id: '1' }],
-			Count: 1,
-			ScannedCount: 1,
-			LastEvaluatedKey: { id: '1' },
-		})
-		vi.mocked(createClient).mockReturnValue({ send: mockSend } as never)
-
-		const initialState = createPaginatedScan({ tableName: 'test' })
-		const { result, nextState } = await fetchNextPage(initialState)
-
-		expect(result.items).toHaveLength(1)
-		expect(nextState.hasMore).toBe(true)
-		expect(nextState.lastEvaluatedKey).toEqual({ id: '1' })
-	})
-
-	it('sets hasMore to false when no more pages', async () => {
-		const mockSend = vi.fn().mockResolvedValue({
-			Items: [{ id: '2' }],
-			Count: 1,
-			ScannedCount: 1,
-			LastEvaluatedKey: undefined,
-		})
-		vi.mocked(createClient).mockReturnValue({ send: mockSend } as never)
-
-		const state = createPaginatedScan({ tableName: 'test' })
-		const { nextState } = await fetchNextPage(state)
-
-		expect(nextState.hasMore).toBe(false)
 	})
 })

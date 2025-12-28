@@ -7,21 +7,11 @@ export {
 } from './errors.js'
 export {
 	buildFilterExpression,
-	createPaginatedQuery,
-	fetchNextQueryPage,
-	type PaginatedQueryState,
 	type QueryParams,
 	type QueryResult,
 	query,
 } from './query.js'
-export {
-	createPaginatedScan,
-	fetchNextPage,
-	type PaginatedScanState,
-	type ScanParams,
-	type ScanResult,
-	scan,
-} from './scan.js'
+export { type ScanParams, type ScanResult, scan } from './scan.js'
 export {
 	describeTable,
 	getTableInfo,

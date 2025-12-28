@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react'
+import { useCallback } from 'react'
 import type { FilterCondition } from '../schemas/query-params.js'
 import {
 	buildFilterExpression,
@@ -14,14 +14,6 @@ export function useScan(tableName: string) {
 	const { profile, region, pageSize, getScanState, setScanState } = useAppStore()
 	const state = getScanState(tableName)
 
-	// Use refs to avoid stale closure issues in pagination
-	const filterConditionsRef = useRef<FilterCondition[]>(state.filterConditions)
-	const lastEvaluatedKeyRef = useRef<Record<string, unknown> | undefined>(state.lastEvaluatedKey)
-
-	// Sync refs with current state
-	filterConditionsRef.current = state.filterConditions
-	lastEvaluatedKeyRef.current = state.lastEvaluatedKey
-
 	const updateState = useCallback(
 		(updates: Partial<ScanState>) => {
 			const currentState = getScanState(tableName)
@@ -34,15 +26,11 @@ export function useScan(tableName: string) {
 		async (options: { filterConditions?: FilterCondition[]; reset?: boolean } = {}) => {
 			const { filterConditions, reset = false } = options
 
-			// Update ref if new filters explicitly provided
-			if (filterConditions !== undefined) {
-				filterConditionsRef.current = filterConditions
-			}
-			// Always use ref value (it's always current)
-			const filtersToUse = filterConditionsRef.current
-			const startKey = reset ? undefined : lastEvaluatedKeyRef.current
-
+			// Read current state directly - no stale closure with getScanState
 			const currentState = getScanState(tableName)
+			const filtersToUse = filterConditions ?? currentState.filterConditions
+			const startKey = reset ? undefined : currentState.lastEvaluatedKey
+
 			setScanState(tableName, {
 				...currentState,
 				isLoading: true,
@@ -53,12 +41,11 @@ export function useScan(tableName: string) {
 							lastEvaluatedKey: undefined,
 							hasMore: true,
 							scannedCount: 0,
-							filterConditions: filterConditionsRef.current,
+							filterConditions: filtersToUse,
 						}
 					: {}),
 			})
 
-			// Build filter expression from conditions
 			const filterParams = buildFilterExpression(filtersToUse)
 
 			try {
@@ -73,9 +60,6 @@ export function useScan(tableName: string) {
 					},
 					{ profile, region },
 				)
-
-				// Update ref for next pagination call
-				lastEvaluatedKeyRef.current = result.lastEvaluatedKey
 
 				const prevState = getScanState(tableName)
 				setScanState(tableName, {
@@ -111,14 +95,11 @@ export function useScan(tableName: string) {
 	)
 
 	const clearFilters = useCallback(() => {
-		filterConditionsRef.current = []
 		updateState({ filterConditions: [] })
 		return executeScan({ filterConditions: [], reset: true })
 	}, [executeScan, updateState])
 
 	const reset = useCallback(() => {
-		filterConditionsRef.current = []
-		lastEvaluatedKeyRef.current = undefined
 		setScanState(tableName, {
 			items: [],
 			isLoading: false,
