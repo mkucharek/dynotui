@@ -141,4 +141,40 @@ describe('useAppStore', () => {
 			expect(useAppStore.getState().canGoBack()).toBe(true)
 		})
 	})
+
+	describe('focus management', () => {
+		beforeEach(() => {
+			useAppStore.setState({
+				focusedPanel: 'sidebar',
+				sidebarSection: 'tables',
+			})
+		})
+
+		it('setFocusedPanel changes panel', () => {
+			useAppStore.getState().setFocusedPanel('main')
+			expect(useAppStore.getState().focusedPanel).toBe('main')
+		})
+
+		it('setSidebarSection changes section and focuses sidebar', () => {
+			useAppStore.getState().setFocusedPanel('main')
+			useAppStore.getState().setSidebarSection('profiles')
+			expect(useAppStore.getState().sidebarSection).toBe('profiles')
+			expect(useAppStore.getState().focusedPanel).toBe('sidebar')
+		})
+
+		it('toggleFocusedPanel switches between panels', () => {
+			expect(useAppStore.getState().focusedPanel).toBe('sidebar')
+			useAppStore.getState().toggleFocusedPanel()
+			expect(useAppStore.getState().focusedPanel).toBe('main')
+			useAppStore.getState().toggleFocusedPanel()
+			expect(useAppStore.getState().focusedPanel).toBe('sidebar')
+		})
+
+		it('goBack restores sidebar focus when returning to home', () => {
+			useAppStore.getState().navigate({ view: 'table', tableName: 'users', mode: 'scan' })
+			useAppStore.getState().setFocusedPanel('main')
+			useAppStore.getState().goBack()
+			expect(useAppStore.getState().focusedPanel).toBe('sidebar')
+		})
+	})
 })

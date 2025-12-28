@@ -1,4 +1,4 @@
-import { Box, useInput } from 'ink'
+import { Box } from 'ink'
 import { useEffect, useMemo, useState } from 'react'
 import { getAwsRegions, listProfiles } from '../../services/aws-config.js'
 import { resetClient } from '../../services/dynamodb/index.js'
@@ -16,7 +16,6 @@ export function Sidebar({ maxHeight }: SidebarProps) {
 		region,
 		focusedPanel,
 		sidebarSection,
-		setSidebarSection,
 		setRuntimeProfile,
 		setRuntimeRegion,
 		navigate,
@@ -108,20 +107,6 @@ export function Sidebar({ maxHeight }: SidebarProps) {
 	const handleTableSelect = (item: SidebarItem) => {
 		navigate({ view: 'table', tableName: item.id, mode: 'scan' }, currentView)
 	}
-
-	// Handle 1/2/3 keys for section switching
-	useInput(
-		(input) => {
-			if (input === '1') {
-				setSidebarSection('profiles')
-			} else if (input === '2') {
-				setSidebarSection('regions')
-			} else if (input === '3') {
-				setSidebarSection('tables')
-			}
-		},
-		{ isActive: focusedPanel === 'sidebar' },
-	)
 
 	const currentTableName = currentView.view === 'table' ? currentView.tableName : undefined
 

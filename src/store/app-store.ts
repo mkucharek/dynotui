@@ -214,6 +214,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 			return {
 				history: state.history.slice(0, -1),
 				currentView: previousView,
+				focusedPanel: previousView.view === 'home' ? 'sidebar' : state.focusedPanel,
 			}
 		}),
 

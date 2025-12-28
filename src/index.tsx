@@ -114,7 +114,7 @@ function App({ initialConfig }: { initialConfig: RuntimeConfig }) {
 				exit()
 			}
 		},
-		{ isActive: focusedPanel === 'sidebar' && currentView.view === 'home' },
+		{ isActive: currentView.view === 'home' },
 	)
 
 	useInput(
@@ -158,9 +158,7 @@ function App({ initialConfig }: { initialConfig: RuntimeConfig }) {
 				]
 			: []),
 		...(currentView.view !== 'home' ? [{ key: 'Esc', label: 'Back' }] : []),
-		...(focusedPanel === 'sidebar' && currentView.view === 'home'
-			? [{ key: 'q', label: 'Quit' }]
-			: []),
+		...(currentView.view === 'home' ? [{ key: 'q', label: 'Quit' }] : []),
 	]
 
 	const contentHeight = terminalHeight - 1
