@@ -176,5 +176,9 @@ function App({ initialConfig }: { initialConfig: RuntimeConfig }) {
 	)
 }
 
-stdout.write('\x1Bc')
-render(<App initialConfig={resolvedConfig} />)
+// Enter alternate screen buffer (preserves terminal scrollback)
+stdout.write('\x1B[?1049h')
+const instance = render(<App initialConfig={resolvedConfig} />)
+instance.waitUntilExit().then(() => {
+	stdout.write('\x1B[?1049l') // Restore main screen
+})
