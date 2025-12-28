@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createPaginatedQuery, fetchNextQueryPage, query } from './query.js'
+import { query } from './query.js'
 
 vi.mock('./client.js', () => ({
 	createClient: vi.fn(() => ({
@@ -332,43 +332,5 @@ describe('query', () => {
 				}),
 			}),
 		)
-	})
-})
-
-describe('createPaginatedQuery', () => {
-	it('creates initial state', () => {
-		const state = createPaginatedQuery({
-			tableName: 'test',
-			partitionKey: { name: 'pk', value: 'val' },
-		})
-
-		expect(state.params.tableName).toBe('test')
-		expect(state.hasMore).toBe(true)
-	})
-})
-
-describe('fetchNextQueryPage', () => {
-	beforeEach(() => {
-		vi.clearAllMocks()
-	})
-
-	it('fetches next page and updates state', async () => {
-		const mockSend = vi.fn().mockResolvedValue({
-			Items: [{ pk: 'user', sk: '1' }],
-			Count: 1,
-			ScannedCount: 1,
-			LastEvaluatedKey: { pk: 'user', sk: '1' },
-		})
-		vi.mocked(createClient).mockReturnValue({ send: mockSend } as never)
-
-		const state = createPaginatedQuery({
-			tableName: 'test',
-			partitionKey: { name: 'pk', value: 'user' },
-		})
-		const { result, nextState } = await fetchNextQueryPage(state)
-
-		expect(result.items).toHaveLength(1)
-		expect(nextState.hasMore).toBe(true)
-		expect(nextState.lastEvaluatedKey).toEqual({ pk: 'user', sk: '1' })
 	})
 })

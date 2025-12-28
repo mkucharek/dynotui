@@ -1,6 +1,5 @@
 // Layout
 
-export { FilterInput, type FilterInputProps } from './forms/filter-input.js'
 export {
 	InlineSelector,
 	type InlineSelectorProps,

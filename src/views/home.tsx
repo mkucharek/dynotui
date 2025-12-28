@@ -113,6 +113,14 @@ export function HomeView() {
 		setMode('selecting-region-behavior')
 	}
 
+	const finishProfileSwitch = () => {
+		resetClient()
+		setTableSelectedIndex(0)
+		setPendingProfile(null)
+		setMode('browsing')
+		setActiveTab('tables')
+	}
+
 	const handleRegionBehaviorSelect = (value: string) => {
 		if (!pendingProfile) return
 
@@ -120,18 +128,10 @@ export function HomeView() {
 
 		if (value === 'profile-default') {
 			setRuntimeProfile(newProfile, 'default')
-			resetClient()
-			setTableSelectedIndex(0)
-			setPendingProfile(null)
-			setMode('browsing')
-			setActiveTab('tables')
+			finishProfileSwitch()
 		} else if (value === 'keep-current') {
 			setRuntimeProfileAndRegion(newProfile, region, 'default')
-			resetClient()
-			setTableSelectedIndex(0)
-			setPendingProfile(null)
-			setMode('browsing')
-			setActiveTab('tables')
+			finishProfileSwitch()
 		} else if (value === 'choose-region') {
 			setMode('selecting-region')
 		}
@@ -142,11 +142,7 @@ export function HomeView() {
 
 		const newProfile = pendingProfile.name === 'default' ? undefined : pendingProfile.name
 		setRuntimeProfileAndRegion(newProfile, selectedRegion, 'default')
-		resetClient()
-		setTableSelectedIndex(0)
-		setPendingProfile(null)
-		setMode('browsing')
-		setActiveTab('tables')
+		finishProfileSwitch()
 	}
 
 	const handleRegionCancel = () => {
