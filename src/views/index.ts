@@ -1,3 +1,4 @@
+/** @deprecated HomeView replaced by Sidebar in split layout */
 export { HomeView } from './home.js'
 export { ItemView, type ItemViewProps } from './item-view.js'
 export { SettingsView } from './settings.js'

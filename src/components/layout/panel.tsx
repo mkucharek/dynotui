@@ -9,14 +9,9 @@ export type PanelProps = {
 
 export function Panel({ title, children, focused = false, ...boxProps }: PanelProps) {
 	return (
-		<Box
-			flexDirection="column"
-			borderStyle="single"
-			borderColor={focused ? 'cyan' : undefined}
-			{...boxProps}
-		>
+		<Box flexDirection="column" {...boxProps}>
 			{title && (
-				<Box marginTop={-1} marginLeft={1}>
+				<Box marginBottom={-1} marginLeft={2}>
 					{typeof title === 'string' ? (
 						<Text bold color={focused ? 'cyan' : undefined}>
 							{' '}
@@ -27,8 +22,16 @@ export function Panel({ title, children, focused = false, ...boxProps }: PanelPr
 					)}
 				</Box>
 			)}
-			<Box flexDirection="column" paddingX={1}>
-				{children}
+			<Box
+				flexDirection="column"
+				borderStyle="single"
+				borderColor={focused ? 'cyan' : undefined}
+				overflowY="hidden"
+				flexGrow={1}
+			>
+				<Box flexDirection="column" paddingX={1} overflowY="hidden" flexGrow={1}>
+					{children}
+				</Box>
 			</Box>
 		</Box>
 	)
