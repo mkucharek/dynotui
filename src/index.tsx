@@ -49,7 +49,7 @@ const resolvedConfig = resolveConfig({
 	cliRegion: cli.flags.region,
 })
 
-function MainPanel({ terminalHeight }: { terminalHeight: number }) {
+function MainContent({ terminalHeight }: { terminalHeight: number }) {
 	const { currentView, focusedPanel } = useAppStore()
 	const isMainFocused = focusedPanel === 'main'
 
@@ -79,20 +79,13 @@ function MainPanel({ terminalHeight }: { terminalHeight: number }) {
 	}
 
 	if (currentView.view === 'table') {
-		const title = `${currentView.tableName} › ${currentView.mode}`
-		return (
-			<Panel title={title} focused={isMainFocused} flexGrow={1} height={terminalHeight}>
-				<TableView state={currentView} maxHeight={terminalHeight - 4} />
-			</Panel>
-		)
+		// TableView uses MainPanel component internally, pass full content height
+		return <TableView state={currentView} maxHeight={terminalHeight} />
 	}
 
 	if (currentView.view === 'item') {
-		return (
-			<Panel title="Item Details" focused={isMainFocused} flexGrow={1} height={terminalHeight}>
-				<ItemView state={currentView} />
-			</Panel>
-		)
+		// ItemView uses MainPanel internally
+		return <ItemView state={currentView} maxHeight={terminalHeight} />
 	}
 
 	return null
@@ -104,6 +97,7 @@ function App({ initialConfig }: { initialConfig: RuntimeConfig }) {
 	const {
 		currentView,
 		focusedPanel,
+		inputMode,
 		cycleFocusedPanel,
 		cycleCurrentPanelTab,
 		setFocusedPanel,
@@ -137,17 +131,18 @@ function App({ initialConfig }: { initialConfig: RuntimeConfig }) {
 		{ isActive: currentView.view === 'home' },
 	)
 
-	// Tab to cycle panels
+	// Tab to cycle panels (disabled in form modes where Tab navigates fields)
+	const isFormMode = inputMode === 'query-form' || inputMode === 'scan-filter'
 	useInput(
 		(_, key) => {
 			if (key.tab) {
 				cycleFocusedPanel(key.shift ? 'prev' : 'next')
 			}
 		},
-		{ isActive: true },
+		{ isActive: !isFormMode },
 	)
 
-	// 1/2/0 to switch panels directly
+	// 1/2/0 to switch panels directly (disabled in form modes)
 	useInput(
 		(input) => {
 			if (input === '1') {
@@ -158,7 +153,7 @@ function App({ initialConfig }: { initialConfig: RuntimeConfig }) {
 				setFocusedPanel('main')
 			}
 		},
-		{ isActive: true },
+		{ isActive: !isFormMode },
 	)
 
 	// h/l or left/right arrows to switch tabs within current panel
@@ -191,7 +186,7 @@ function App({ initialConfig }: { initialConfig: RuntimeConfig }) {
 			</Box>
 			<SplitLayout
 				sidebar={<Sidebar maxHeight={contentHeight} />}
-				main={<MainPanel terminalHeight={contentHeight} />}
+				main={<MainContent terminalHeight={contentHeight} />}
 				sidebarWidth={30}
 				height={contentHeight}
 			/>

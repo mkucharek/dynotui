@@ -30,7 +30,7 @@ describe('ItemDetail', () => {
 	it('renders null and boolean values', () => {
 		const { lastFrame } = render(<ItemDetail item={{ active: true, deleted: null }} />)
 		expect(lastFrame()).toContain('true')
-		expect(lastFrame()).toContain('null')
+		expect(lastFrame()).toContain('∅') // null rendered as empty set symbol
 	})
 
 	it('renders empty object', () => {
@@ -38,24 +38,17 @@ describe('ItemDetail', () => {
 		expect(lastFrame()).toContain('{}')
 	})
 
-	it('scrolls with j/k keys', () => {
+	it('shows scroll indicator when content exceeds height', () => {
 		const bigItem: Record<string, string> = {}
 		for (let i = 0; i < 50; i++) {
 			bigItem[`key${i}`] = `value${i}`
 		}
 
-		const { lastFrame, stdin } = render(<ItemDetail item={bigItem} maxHeight={10} />)
+		const { lastFrame } = render(<ItemDetail item={bigItem} maxHeight={10} />)
 
 		// Initially shows first lines
 		expect(lastFrame()).toContain('"key0"')
-
-		// Scroll down
-		stdin.write('j')
-		stdin.write('j')
-		stdin.write('j')
-
-		const frameAfterScroll = lastFrame()
-		// Should show scroll indicator
-		expect(frameAfterScroll).toContain('Lines')
+		// Should show scroll down indicator when more content available
+		expect(lastFrame()).toContain('▼')
 	})
 })

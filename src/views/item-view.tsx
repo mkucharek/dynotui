@@ -1,17 +1,24 @@
 import { Box, Text, useInput } from 'ink'
-import { ItemDetail, Panel } from '../components/index.js'
+import { ItemDetail, MainPanel } from '../components/index.js'
 import { useAppStore } from '../store/app-store.js'
+import { colors, symbols } from '../theme.js'
 import type { ItemViewState } from '../types/navigation.js'
 
 export type ItemViewProps = {
 	state: ItemViewState
+	maxHeight?: number
 }
 
-export function ItemView({ state }: ItemViewProps) {
+export function ItemView({ state, maxHeight = 20 }: ItemViewProps) {
 	const { tableName, item } = state
 	const { goBack, focusedPanel } = useAppStore()
 
 	const isMainFocused = focusedPanel === 'main'
+
+	// Get primary key info for metadata
+	const itemKeys = Object.keys(item)
+	const firstKey = itemKeys[0]
+	const firstValue = firstKey ? item[firstKey] : null
 
 	useInput(
 		(_input, key) => {
@@ -22,17 +29,29 @@ export function ItemView({ state }: ItemViewProps) {
 		{ isActive: isMainFocused },
 	)
 
-	return (
-		<Box flexDirection="column" flexGrow={1} padding={1} gap={1}>
-			{/* Table name */}
-			<Text bold color="cyan">
-				{tableName}
-			</Text>
-
-			{/* Item detail panel */}
-			<Panel title="Item Detail" focused={isMainFocused} flexGrow={1}>
-				<ItemDetail item={item} />
-			</Panel>
+	const metadataContent = (
+		<Box gap={1}>
+			{firstKey && (
+				<>
+					<Text color={colors.dataKey}>{firstKey}:</Text>
+					<Text color={firstValue === null ? colors.dataNull : colors.dataValue}>
+						{firstValue === null ? symbols.null : String(firstValue)}
+					</Text>
+					<Text color={colors.border}>│</Text>
+				</>
+			)}
+			<Text color={colors.textSecondary}>{itemKeys.length} attributes</Text>
 		</Box>
+	)
+
+	return (
+		<MainPanel
+			title={`${tableName} › Item`}
+			panelNumber={0}
+			focused={isMainFocused}
+			metadata={metadataContent}
+		>
+			<ItemDetail item={item} maxHeight={maxHeight - 10} />
+		</MainPanel>
 	)
 }

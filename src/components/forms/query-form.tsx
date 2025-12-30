@@ -2,6 +2,7 @@ import { Box, Text, useInput } from 'ink'
 import TextInput from 'ink-text-input'
 import { useState } from 'react'
 import type { FilterCondition, SortKeyOperator } from '../../schemas/query-params.js'
+import { colors } from '../../theme.js'
 import { FilterBuilder } from './filter-builder.js'
 
 // Form output type (without tableName, which is added by the caller)
@@ -147,16 +148,12 @@ export function QueryForm({
 
 	return (
 		<Box flexDirection="column" gap={1}>
-			<Box>
-				<Text bold color="cyan">
-					Query Builder
-				</Text>
-			</Box>
-
 			{/* Partition Key */}
 			<Box>
 				<Box width={20}>
-					<Text color={activeField === 'pk' ? 'cyan' : undefined}>{partitionKeyName} (PK):</Text>
+					<Text color={activeField === 'pk' ? colors.focus : colors.textSecondary}>
+						{partitionKeyName} (PK):
+					</Text>
 				</Box>
 				<TextInput
 					value={pkValue}
@@ -171,13 +168,13 @@ export function QueryForm({
 				<>
 					<Box>
 						<Box width={20}>
-							<Text color={activeField === 'skOp' ? 'cyan' : undefined}>
+							<Text color={activeField === 'skOp' ? colors.focus : colors.textSecondary}>
 								{sortKeyName} operator:
 							</Text>
 						</Box>
 						<Text>
 							{SK_OPERATORS.map((op, i) => (
-								<Text key={op.value} color={i === opIndex ? 'cyan' : 'gray'}>
+								<Text key={op.value} color={i === opIndex ? colors.focus : colors.textMuted}>
 									{i === opIndex ? `[${op.label}]` : ` ${op.label} `}
 									{i < SK_OPERATORS.length - 1 ? ' ' : ''}
 								</Text>
@@ -187,7 +184,9 @@ export function QueryForm({
 
 					<Box>
 						<Box width={20}>
-							<Text color={activeField === 'sk' ? 'cyan' : undefined}>{sortKeyName} value:</Text>
+							<Text color={activeField === 'sk' ? colors.focus : colors.textSecondary}>
+								{sortKeyName} value:
+							</Text>
 						</Box>
 						<TextInput
 							value={skValue}
@@ -200,7 +199,7 @@ export function QueryForm({
 					{skOperator === 'between' && (
 						<Box>
 							<Box width={20}>
-								<Text color={activeField === 'sk2' ? 'cyan' : undefined}>
+								<Text color={activeField === 'sk2' ? colors.focus : colors.textSecondary}>
 									{sortKeyName} value2:
 								</Text>
 							</Box>
@@ -232,19 +231,6 @@ export function QueryForm({
 					/>
 				</Box>
 			)}
-
-			<Box marginTop={1}>
-				<Text dimColor>
-					<Text color="cyan">Tab</Text> Next {'  '}
-					<Text color="cyan">Enter</Text> Submit {'  '}
-					{activeSection === 'keys' && (
-						<>
-							<Text color="cyan">f</Text> Filter {'  '}
-						</>
-					)}
-					<Text color="cyan">Esc</Text> Cancel
-				</Text>
-			</Box>
 		</Box>
 	)
 }

@@ -4,8 +4,8 @@ import {
 	type Column,
 	DataTable,
 	Loading,
-	Pagination,
-	Panel,
+	MainPanel,
+	QueryFilterSummary,
 	QueryForm,
 	type QueryFormOutput,
 	ScanFilterForm,
@@ -16,6 +16,7 @@ import { useAppStore } from '../store/app-store.js'
 import { useQuery } from '../store/use-query.js'
 import { useScan } from '../store/use-scan.js'
 import { useTables } from '../store/use-tables.js'
+import { colors } from '../theme.js'
 import type { TableViewState } from '../types/navigation.js'
 
 export type TableViewProps = {
@@ -27,7 +28,9 @@ type Mode = 'scan' | 'query' | 'query-form' | 'scan-filter-form'
 
 export function TableView({ state, maxHeight = 20 }: TableViewProps) {
 	const { tableName } = state
-	const tableMaxRows = Math.max(5, maxHeight - 9)
+	// MainPanel overhead: border(2) + header(1) + sep(1) + metadata(1) + margin+sep(2) + footer(1) = 8
+	// DataTable overhead: header(1) + sep(1) + scroll indicators(~1) = 3
+	const tableMaxRows = Math.max(5, maxHeight - 11)
 	const { navigate, goBack, focusedPanel, setInputMode } = useAppStore()
 	const { fetchTableInfo, tableInfoCache } = useTables()
 	const scan = useScan(tableName)
@@ -72,6 +75,17 @@ export function TableView({ state, maxHeight = 20 }: TableViewProps) {
 
 		return cols
 	}, [tableInfo, items])
+
+	// Stable row key using primary key values (prevents React reconciliation issues)
+	const getRowKey = useMemo(() => {
+		if (!tableInfo) return undefined
+		const { partitionKey, sortKey } = tableInfo
+		return (row: Record<string, unknown>) => {
+			const pk = String(row[partitionKey] ?? '')
+			const sk = sortKey ? String(row[sortKey] ?? '') : ''
+			return `${pk}|${sk}`
+		}
+	}, [tableInfo])
 
 	useEffect(() => {
 		fetchTableInfo(tableName)
@@ -152,102 +166,138 @@ export function TableView({ state, maxHeight = 20 }: TableViewProps) {
 		setInputMode('normal')
 	}
 
-	return (
-		<Box flexDirection="column" flexGrow={1} padding={1} gap={1} overflowY="hidden">
-			{/* Table info bar */}
-			<Box gap={2}>
-				<Text bold color="cyan">
-					{tableName}
-				</Text>
-				{tableInfo && (
-					<>
-						<Text dimColor>
-							PK: <Text color="yellow">{tableInfo.partitionKey}</Text>
-						</Text>
-						{tableInfo.sortKey && (
-							<Text dimColor>
-								SK: <Text color="yellow">{tableInfo.sortKey}</Text>
-							</Text>
-						)}
-						<Text dimColor>
-							Items: <Text color="yellow">{tableInfo.itemCount?.toLocaleString()}</Text>
-						</Text>
-					</>
-				)}
-				<Text dimColor>
-					Mode:{' '}
-					<Text color={mode === 'scan' || mode === 'scan-filter-form' ? 'green' : 'blue'}>
-						{mode === 'query-form' ? 'query' : mode === 'scan-filter-form' ? 'scan' : mode}
+	// Determine display mode for metadata
+	const displayMode = mode === 'query-form' || mode === 'query' ? 'query' : 'scan'
+
+	// Metadata bar content - show even without tableInfo, just with less detail
+	const metadataContent = (
+		<Box gap={1}>
+			{tableInfo ? (
+				<>
+					<Text color={colors.textSecondary}>PK:</Text>
+					<Text color={colors.dataKey}>{tableInfo.partitionKey}</Text>
+					{tableInfo.sortKey && (
+						<>
+							<Text color={colors.border}>│</Text>
+							<Text color={colors.textSecondary}>SK:</Text>
+							<Text color={colors.dataKey}>{tableInfo.sortKey}</Text>
+						</>
+					)}
+					<Text color={colors.border}>│</Text>
+					<Text color={colors.textSecondary}>
+						{tableInfo.itemCount?.toLocaleString() ?? '?'} items
 					</Text>
-					{filterConditions.length > 0 && mode === 'scan' && (
-						<Text color="yellow"> ({filterConditions.length} filters)</Text>
-					)}
-				</Text>
+				</>
+			) : (
+				<Text color={colors.textMuted}>Loading schema...</Text>
+			)}
+			<Text color={colors.border}>│</Text>
+			<Text color={displayMode === 'scan' ? colors.active : colors.focus}>{displayMode}</Text>
+		</Box>
+	)
+
+	// Query/Filter summary (only show when not in form mode and have active params)
+	const queryFilterContent =
+		mode === 'scan' || mode === 'query' ? (
+			<QueryFilterSummary
+				mode={displayMode}
+				queryParams={mode === 'query' ? query.queryParams : null}
+				filterConditions={mode === 'scan' ? filterConditions : []}
+			/>
+		) : null
+
+	// Check if filters are active
+	const hasActiveFilters = filterConditions.length > 0
+
+	// Footer content (scanned count + more indicator + clear hint)
+	const footerContent =
+		(mode === 'scan' || mode === 'query') && items.length > 0 ? (
+			<Box gap={2}>
+				{isLoading && <Text color={colors.textMuted}>Loading...</Text>}
+				{scannedCount > 0 && (
+					<Text color={colors.textSecondary}>Scanned: {scannedCount.toLocaleString()}</Text>
+				)}
+				{hasMore && (
+					<Text color={colors.textMuted}>
+						<Text color={colors.border}>│</Text> <Text color={colors.brand}>▼</Text> more available
+					</Text>
+				)}
+				{hasActiveFilters && mode === 'scan' && (
+					<Text color={colors.textMuted}>
+						<Text color={colors.border}>│</Text> <Text color={colors.focus}>s</Text> Clear filters
+					</Text>
+				)}
 			</Box>
+		) : null
 
-			{/* Query form */}
-			{mode === 'query-form' && tableInfo && (
-				<Panel title="Query">
-					<QueryForm
-						partitionKeyName={tableInfo.partitionKey}
-						sortKeyName={tableInfo.sortKey}
-						onSubmit={handleQuerySubmit}
-						onCancel={handleQueryCancel}
-					/>
-				</Panel>
-			)}
+	// Form views - render directly in MainPanel (no extra Panel wrapper)
+	if (mode === 'query-form' && tableInfo) {
+		return (
+			<MainPanel
+				title={`${tableName} › Query`}
+				panelNumber={0}
+				focused={isMainFocused}
+				metadata={metadataContent}
+			>
+				<QueryForm
+					partitionKeyName={tableInfo.partitionKey}
+					sortKeyName={tableInfo.sortKey}
+					onSubmit={handleQuerySubmit}
+					onCancel={handleQueryCancel}
+				/>
+			</MainPanel>
+		)
+	}
 
-			{/* Scan filter form */}
-			{mode === 'scan-filter-form' && (
-				<Panel title="Scan Filter">
-					<ScanFilterForm
-						initialConditions={filterConditions}
-						onSubmit={handleScanFilterSubmit}
-						onCancel={handleScanFilterCancel}
-					/>
-				</Panel>
-			)}
+	if (mode === 'scan-filter-form') {
+		return (
+			<MainPanel
+				title={`${tableName} › Filter`}
+				panelNumber={0}
+				focused={isMainFocused}
+				metadata={metadataContent}
+			>
+				<ScanFilterForm
+					initialConditions={filterConditions}
+					onSubmit={handleScanFilterSubmit}
+					onCancel={handleScanFilterCancel}
+				/>
+			</MainPanel>
+		)
+	}
 
-			{/* Results panel */}
-			{(mode === 'scan' || mode === 'query') && (
-				<Panel title="Results" focused={isMainFocused} flexGrow={1}>
-					{isLoading && items.length === 0 ? (
-						<Loading message={mode === 'scan' ? 'Scanning...' : 'Querying...'} />
-					) : error ? (
-						<Text color="red">{getErrorDisplayMessage(error)}</Text>
-					) : items.length === 0 ? (
-						<Text dimColor>No items found</Text>
-					) : (
-						<DataTable
-							data={items}
-							columns={columns}
-							selectedIndex={selectedIndex}
-							onSelect={setSelectedIndex}
-							maxHeight={tableMaxRows}
-							focused={isMainFocused}
-							onEnter={(row) => {
-								navigate({ view: 'item', tableName, item: row }, state)
-							}}
-						/>
-					)}
-				</Panel>
-			)}
-
-			{/* Pagination */}
-			{(mode === 'scan' || mode === 'query') && items.length > 0 && (
-				<Pagination
-					hasMore={hasMore}
-					isLoading={isLoading}
-					scannedCount={scannedCount}
-					onNextPage={() => (mode === 'scan' ? scan.fetchNextPage() : query.fetchNextPage())}
-					onRefresh={() =>
-						mode === 'scan'
-							? scan.refresh()
-							: query.queryParams && query.executeQuery(query.queryParams, true)
-					}
-					focused={false}
+	// Results view
+	return (
+		<MainPanel
+			title={tableName}
+			panelNumber={0}
+			focused={isMainFocused}
+			metadata={metadataContent}
+			queryFilter={queryFilterContent}
+			footer={footerContent}
+		>
+			{isLoading && items.length === 0 ? (
+				<Loading message={mode === 'scan' ? 'Scanning...' : 'Querying...'} />
+			) : !tableInfo && items.length > 0 ? (
+				<Loading message="Loading schema..." />
+			) : error ? (
+				<Text color={colors.error}>{getErrorDisplayMessage(error)}</Text>
+			) : items.length === 0 ? (
+				<Text color={colors.textMuted}>No items found</Text>
+			) : (
+				<DataTable
+					data={items}
+					columns={columns}
+					selectedIndex={selectedIndex}
+					onSelect={setSelectedIndex}
+					maxHeight={tableMaxRows}
+					focused={isMainFocused}
+					getRowKey={getRowKey}
+					onEnter={(row) => {
+						navigate({ view: 'item', tableName, item: row }, state)
+					}}
 				/>
 			)}
-		</Box>
+		</MainPanel>
 	)
 }

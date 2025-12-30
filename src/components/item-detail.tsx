@@ -1,5 +1,6 @@
 import { Box, Text, useInput } from 'ink'
 import { useMemo, useState } from 'react'
+import { colors, symbols } from '../theme.js'
 
 export type ItemDetailProps = {
 	item: Record<string, unknown>
@@ -18,29 +19,44 @@ type JsonLine = {
 	bracket?: string
 }
 
-let lineIdCounter = 0
-function nextId(prefix: string): string {
-	return `${prefix}-${++lineIdCounter}`
+type IdGenerator = (prefix: string) => string
+
+function createIdGenerator(): IdGenerator {
+	let counter = 0
+	return (prefix: string) => `${prefix}-${++counter}`
 }
 
-function jsonToLines(obj: unknown, indent = 0, path = 'root'): JsonLine[] {
+function jsonToLines(obj: unknown, nextId: IdGenerator, indent = 0, path = 'root'): JsonLine[] {
 	const lines: JsonLine[] = []
 
 	if (obj === null) {
-		lines.push({ id: nextId(path), indent, value: 'null', valueColor: 'gray' })
+		lines.push({ id: nextId(path), indent, value: symbols.null, valueColor: colors.dataNull })
 	} else if (typeof obj === 'boolean') {
-		lines.push({ id: nextId(path), indent, value: String(obj), valueColor: 'yellow' })
+		lines.push({ id: nextId(path), indent, value: String(obj), valueColor: colors.focus })
 	} else if (typeof obj === 'number') {
-		lines.push({ id: nextId(path), indent, value: String(obj), valueColor: 'cyan' })
+		lines.push({ id: nextId(path), indent, value: String(obj), valueColor: colors.dataValue })
 	} else if (typeof obj === 'string') {
-		lines.push({ id: nextId(path), indent, value: `"${obj}"`, valueColor: 'green' })
+		lines.push({ id: nextId(path), indent, value: `"${obj}"`, valueColor: colors.active })
+	} else if (
+		obj instanceof Uint8Array ||
+		(obj && typeof obj === 'object' && 'type' in obj && obj.type === 'Buffer')
+	) {
+		// Binary data
+		const len =
+			obj instanceof Uint8Array ? obj.length : ((obj as { data?: unknown[] }).data?.length ?? 0)
+		lines.push({
+			id: nextId(path),
+			indent,
+			value: `<binary ${len}b>`,
+			valueColor: colors.textMuted,
+		})
 	} else if (Array.isArray(obj)) {
 		if (obj.length === 0) {
-			lines.push({ id: nextId(path), indent, value: '[]', valueColor: 'gray' })
+			lines.push({ id: nextId(path), indent, value: '[]', valueColor: colors.textMuted })
 		} else {
 			lines.push({ id: nextId(`${path}-open`), indent, isOpener: true, bracket: '[' })
 			obj.forEach((item, i) => {
-				const itemLines = jsonToLines(item, indent + 2, `${path}[${i}]`)
+				const itemLines = jsonToLines(item, nextId, indent + 2, `${path}[${i}]`)
 				const last = itemLines[itemLines.length - 1]
 				if (i < obj.length - 1 && last) {
 					if (last.value) last.value += ','
@@ -53,11 +69,11 @@ function jsonToLines(obj: unknown, indent = 0, path = 'root'): JsonLine[] {
 	} else if (typeof obj === 'object') {
 		const entries = Object.entries(obj as Record<string, unknown>)
 		if (entries.length === 0) {
-			lines.push({ id: nextId(path), indent, value: '{}', valueColor: 'gray' })
+			lines.push({ id: nextId(path), indent, value: '{}', valueColor: colors.textMuted })
 		} else {
 			lines.push({ id: nextId(`${path}-open`), indent, isOpener: true, bracket: '{' })
 			entries.forEach(([key, val], i) => {
-				const valLines = jsonToLines(val, indent + 2, `${path}.${key}`)
+				const valLines = jsonToLines(val, nextId, indent + 2, `${path}.${key}`)
 				const firstLine = valLines[0]
 				const lastLine = valLines[valLines.length - 1]
 				if (valLines.length === 1 && firstLine?.value) {
@@ -98,8 +114,8 @@ export function ItemDetail({ item, maxHeight = 30, focused = true }: ItemDetailP
 	const [scrollOffset, setScrollOffset] = useState(0)
 
 	const lines = useMemo(() => {
-		lineIdCounter = 0
-		return jsonToLines(item)
+		const nextId = createIdGenerator()
+		return jsonToLines(item, nextId)
 	}, [item])
 
 	useInput(
@@ -120,33 +136,37 @@ export function ItemDetail({ item, maxHeight = 30, focused = true }: ItemDetailP
 	)
 
 	const visibleLines = lines.slice(scrollOffset, scrollOffset + maxHeight)
+	const hasScroll = lines.length > maxHeight
 
 	return (
 		<Box flexDirection="column" overflow="hidden">
+			{/* Scroll up indicator */}
+			{scrollOffset > 0 && (
+				<Box justifyContent="flex-end">
+					<Text color={colors.textMuted}>{symbols.scrollUp}</Text>
+				</Box>
+			)}
+
 			{visibleLines.map((line) => (
 				<Box key={line.id}>
 					<Text wrap="truncate">
 						{'  '.repeat(line.indent / 2)}
 						{line.key && (
 							<>
-								<Text color="magenta">"{line.key}"</Text>
-								<Text>: </Text>
+								<Text color={colors.dataKey}>"{line.key}"</Text>
+								<Text color={colors.textSecondary}>: </Text>
 							</>
 						)}
-						{line.bracket && <Text>{line.bracket}</Text>}
-						{line.value && <Text color={line.valueColor as never}>{line.value}</Text>}
+						{line.bracket && <Text color={colors.textSecondary}>{line.bracket}</Text>}
+						{line.value && <Text color={line.valueColor}>{line.value}</Text>}
 					</Text>
 				</Box>
 			))}
 
-			{lines.length > maxHeight && (
-				<Box marginTop={1}>
-					<Text dimColor>
-						Lines {scrollOffset + 1}-{Math.min(scrollOffset + maxHeight, lines.length)} of{' '}
-						{lines.length} {'  '}
-						<Text color="cyan">j/k</Text> scroll {'  '}
-						<Text color="cyan">g/G</Text> top/bottom
-					</Text>
+			{/* Scroll down indicator */}
+			{hasScroll && scrollOffset + maxHeight < lines.length && (
+				<Box justifyContent="flex-end">
+					<Text color={colors.textMuted}>{symbols.scrollDown}</Text>
 				</Box>
 			)}
 		</Box>

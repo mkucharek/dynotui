@@ -9,7 +9,7 @@ updated_date: '2025-12-30 14:41'
 
 Comprehensive plan to transform DynoTUI from functional-but-utilitarian to a polished, AWS-inspired terminal application with lazygit-quality aesthetics.
 
-**Status: Phase 1-2 Implemented** ✓
+**Status: Phase 1-3 Implemented** ✓
 
 ---
 
@@ -243,11 +243,37 @@ setInputMode: (mode: InputMode) => void
 
 ## Remaining Work
 
-### Phase 3: Data Display (TODO)
-- [ ] DataTable type formatting (null as `∅`, sets as `{a,b,c}`)
-- [ ] Smart column detection based on frequency
-- [ ] Numbers right-aligned
-- [ ] Binary display as `<binary 256b>`
+### Phase 3: Data Display & Main Panel (Implemented ✓)
+- [x] DataTable type formatting (null as `∅`, sets as `{a,b,c}`)
+- [x] Smart column detection based on frequency
+- [x] Numbers right-aligned
+- [x] Binary display as `<binary 256b>`
+- [x] MainPanel component matching SidebarPanel structure
+- [x] QueryFilterSummary component showing applied query/filters
+- [x] Integrated metadata bar (PK, SK, item count, mode)
+- [x] Integrated footer with pagination hints
+
+**New Files:**
+| File | Description |
+|------|-------------|
+| `src/components/layout/main-panel.tsx` | Structured main panel with header, metadata, query/filter, footer |
+| `src/components/table/query-filter-summary.tsx` | Displays active query params and filter conditions |
+
+**MainPanel Structure:**
+```
+╭──────────────────────────────────────────────────────────────────╮
+│[0] table-name                                                    │
+│┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄│
+│ PK: user_id │ SK: created_at │ 1.2k items │ scan                 │
+│ ╭─ Query ─────────────────────────────────────────────────────╮ │
+│ │ user_id = "u-123"  created_at > "2024-01"                   │ │
+│ ╰─────────────────────────────────────────────────────────────╯ │
+│──────────────────────────────────────────────────────────────────│
+│ [ DataTable content ]                                            │
+│                                                                  │
+│ Scanned: 1,234                               n more   r refresh  │
+╰──────────────────────────────────────────────────────────────────╯
+```
 
 ### Phase 4: Feedback States (TODO)
 - [ ] Loading with metrics (RCU, timing)
@@ -269,4 +295,4 @@ setInputMode: (mode: InputMode) => void
 3. ✓ **Architecture**: Clean panel/tab state model
 4. ○ **Metrics**: RCU, timing, scan count visible (TODO)
 5. ○ **Errors**: Actionable guidance for common issues (TODO)
-6. ○ **Types**: Proper formatting for DDB types (TODO)
+6. ✓ **Types**: Proper formatting for DDB types (null→∅, sets, binary, numbers)

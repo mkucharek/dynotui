@@ -1,4 +1,4 @@
-import { Box, Text, useInput } from 'ink'
+import { Box, useInput } from 'ink'
 import { useState } from 'react'
 import type { FilterCondition } from '../../schemas/query-params.js'
 import { FilterBuilder } from './filter-builder.js'
@@ -32,6 +32,11 @@ export function ScanFilterForm({
 		onSubmit(validFilters)
 	}
 
+	const handleClear = () => {
+		// All filters cleared - submit empty to clear and go back to raw scan
+		onSubmit([])
+	}
+
 	useInput(
 		(_input, key) => {
 			if (!focused) return
@@ -45,26 +50,13 @@ export function ScanFilterForm({
 
 	return (
 		<Box flexDirection="column" gap={1}>
-			<Box>
-				<Text bold color="cyan">
-					Scan Filter
-				</Text>
-			</Box>
-
 			<FilterBuilder
 				conditions={conditions}
 				onChange={setConditions}
 				focused={focused}
 				onExit={handleSubmit}
+				onClear={handleClear}
 			/>
-
-			<Box marginTop={1}>
-				<Text dimColor>
-					<Text color="cyan">Tab</Text> Next {'  '}
-					<Text color="cyan">Enter</Text> Apply {'  '}
-					<Text color="cyan">Esc</Text> Cancel
-				</Text>
-			</Box>
 		</Box>
 	)
 }

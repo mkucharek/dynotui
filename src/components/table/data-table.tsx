@@ -18,6 +18,8 @@ export type DataTableProps<T extends Record<string, unknown>> = {
 	onEnter?: (row: T, index: number) => void
 	maxHeight?: number
 	focused?: boolean
+	/** Function to generate stable key for each row. Defaults to using row index. */
+	getRowKey?: (row: T, index: number) => string
 }
 
 function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
@@ -124,6 +126,7 @@ export function DataTable<T extends Record<string, unknown>>({
 	onEnter,
 	maxHeight = 20,
 	focused = true,
+	getRowKey,
 }: DataTableProps<T>) {
 	const [internalIndex, setInternalIndex] = useState(0)
 	const selectedIndex = controlledIndex ?? internalIndex
@@ -194,18 +197,16 @@ export function DataTable<T extends Record<string, unknown>>({
 				</Box>
 			)}
 
-			{/* Header */}
+			{/* Header - always left-aligned */}
 			<Box>
 				<Box width={2} />
 				{columns.map((col, i) => {
-					const align = columnAlignments[i]
 					const width = columnWidths[i] ?? 10
-					const header = col.header.slice(0, width)
-					const padded = align === 'right' ? header.padStart(width) : header.padEnd(width)
+					const header = col.header.slice(0, width).padEnd(width)
 					return (
 						<Box key={col.key as string} width={width} marginRight={1}>
 							<Text bold color={colors.text}>
-								{padded}
+								{header}
 							</Text>
 						</Box>
 					)
@@ -222,8 +223,9 @@ export function DataTable<T extends Record<string, unknown>>({
 			{visibleData.map((row, i) => {
 				const actualIndex = visibleStart + i
 				const isSelected = actualIndex === selectedIndex && focused
+				const rowKey = getRowKey ? getRowKey(row, actualIndex) : `row-${actualIndex}`
 				return (
-					<Box key={actualIndex}>
+					<Box key={rowKey}>
 						{/* Selection indicator */}
 						<Text color={isSelected ? colors.focus : colors.textMuted} inverse={isSelected}>
 							{isSelected ? symbols.selected : ' '}{' '}
@@ -255,16 +257,6 @@ export function DataTable<T extends Record<string, unknown>>({
 					<Text color={colors.textMuted}>{symbols.scrollDown}</Text>
 				</Box>
 			)}
-
-			{/* Position indicator */}
-			<Box marginTop={1}>
-				<Text color={colors.textSecondary}>
-					{visibleEnd}/{data.length}
-				</Text>
-				{hasScrollDown && (
-					<Text color={colors.textMuted}> {symbols.breadcrumbSeparator} More (n)</Text>
-				)}
-			</Box>
 		</Box>
 	)
 }
