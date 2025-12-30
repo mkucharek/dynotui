@@ -168,7 +168,9 @@ export function buildFilterExpression(conditions: FilterCondition[]): {
 	const expressionAttributeValues: Record<string, unknown> = {}
 
 	for (let i = 0; i < conditions.length; i++) {
-		const { clause, attrName, attrValue } = buildFilterConditionClause(conditions[i], i)
+		const condition = conditions[i]
+		if (!condition) continue
+		const { clause, attrName, attrValue } = buildFilterConditionClause(condition, i)
 		clauses.push(clause)
 		Object.assign(expressionAttributeNames, attrName)
 		Object.assign(expressionAttributeValues, attrValue)

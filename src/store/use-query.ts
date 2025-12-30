@@ -1,48 +1,48 @@
-import { useCallback, useState } from 'react'
+import { useCallback } from 'react'
 import {
-	type ParsedDynamoDBError,
 	parseDynamoDBError,
 	type QueryParams,
 	type QueryResult,
 	query,
 } from '../services/dynamodb/index.js'
-import { useAppStore } from './app-store.js'
+import {
+	createInitialQueryState,
+	type QueryParamsCache,
+	type QueryState,
+	useAppStore,
+} from './app-store.js'
 
-export type QueryState = {
-	items: Record<string, unknown>[]
-	isLoading: boolean
-	error: ParsedDynamoDBError | null
-	hasMore: boolean
-	lastEvaluatedKey: Record<string, unknown> | undefined
-	scannedCount: number
-}
+export type { QueryState, QueryParamsCache }
 
 export function useQuery(tableName: string) {
-	const { profile, region, pageSize } = useAppStore()
-
-	const [state, setState] = useState<QueryState>({
-		items: [],
-		isLoading: false,
-		error: null,
-		hasMore: true,
-		lastEvaluatedKey: undefined,
-		scannedCount: 0,
-	})
-
-	const [queryParams, setQueryParams] = useState<Omit<QueryParams, 'tableName'> | null>(null)
+	const { profile, region, pageSize, getQueryState, setQueryState } = useAppStore()
+	const state = getQueryState(tableName)
 
 	const executeQuery = useCallback(
 		async (params: Omit<QueryParams, 'tableName'>, reset = false) => {
-			setQueryParams(params)
+			// Read current state directly - no stale closure with getQueryState
+			const currentState = getQueryState(tableName)
+			const startKey = reset ? undefined : currentState.lastEvaluatedKey
 
-			setState((prev) => ({
-				...prev,
+			// Cache query params for pagination
+			const queryParamsCache: QueryParamsCache = {
+				indexName: params.indexName,
+				partitionKey: params.partitionKey,
+				sortKey: params.sortKey,
+				filterConditions: params.filterConditions,
+				limit: params.limit,
+				scanIndexForward: params.scanIndexForward,
+			}
+
+			setQueryState(tableName, {
+				...currentState,
 				isLoading: true,
 				error: null,
+				queryParams: queryParamsCache,
 				...(reset
 					? { items: [], lastEvaluatedKey: undefined, hasMore: true, scannedCount: 0 }
 					: {}),
-			}))
+			})
 
 			try {
 				const result: QueryResult = await query(
@@ -50,58 +50,74 @@ export function useQuery(tableName: string) {
 						tableName,
 						...params,
 						limit: params.limit ?? pageSize,
-						exclusiveStartKey: reset ? undefined : state.lastEvaluatedKey,
+						exclusiveStartKey: startKey,
 					},
 					{ profile, region },
 				)
 
-				setState((prev) => ({
-					...prev,
-					items: reset ? result.items : [...prev.items, ...result.items],
+				const prevState = getQueryState(tableName)
+				setQueryState(tableName, {
+					...prevState,
+					items: reset ? result.items : [...prevState.items, ...result.items],
 					lastEvaluatedKey: result.lastEvaluatedKey,
 					hasMore: result.lastEvaluatedKey !== undefined,
-					scannedCount: prev.scannedCount + result.scannedCount,
+					scannedCount: (reset ? 0 : prevState.scannedCount) + result.scannedCount,
 					isLoading: false,
-				}))
+					initialized: true,
+				})
 
 				return result
 			} catch (err) {
-				setState((prev) => ({
-					...prev,
+				const prevState = getQueryState(tableName)
+				setQueryState(tableName, {
+					...prevState,
 					error: parseDynamoDBError(err),
 					isLoading: false,
-				}))
+					initialized: true,
+				})
 				return null
 			}
 		},
-		[tableName, profile, region, pageSize, state.lastEvaluatedKey],
+		[tableName, profile, region, pageSize, getQueryState, setQueryState],
 	)
 
 	const fetchNextPage = useCallback(async () => {
-		if (!queryParams) return null
-		return executeQuery(queryParams, false)
-	}, [executeQuery, queryParams])
+		const currentState = getQueryState(tableName)
+		if (!currentState.queryParams) return null
+
+		// Reconstruct params from cache
+		const params: Omit<QueryParams, 'tableName'> = {
+			partitionKey: currentState.queryParams.partitionKey,
+			sortKey: currentState.queryParams.sortKey,
+			indexName: currentState.queryParams.indexName,
+			filterConditions: currentState.queryParams.filterConditions,
+			limit: currentState.queryParams.limit,
+			scanIndexForward: currentState.queryParams.scanIndexForward,
+		}
+		return executeQuery(params, false)
+	}, [tableName, executeQuery, getQueryState])
 
 	const refresh = useCallback(async () => {
-		if (!queryParams) return null
-		return executeQuery(queryParams, true)
-	}, [executeQuery, queryParams])
+		const currentState = getQueryState(tableName)
+		if (!currentState.queryParams) return null
+
+		const params: Omit<QueryParams, 'tableName'> = {
+			partitionKey: currentState.queryParams.partitionKey,
+			sortKey: currentState.queryParams.sortKey,
+			indexName: currentState.queryParams.indexName,
+			filterConditions: currentState.queryParams.filterConditions,
+			limit: currentState.queryParams.limit,
+			scanIndexForward: currentState.queryParams.scanIndexForward,
+		}
+		return executeQuery(params, true)
+	}, [tableName, executeQuery, getQueryState])
 
 	const reset = useCallback(() => {
-		setQueryParams(null)
-		setState({
-			items: [],
-			isLoading: false,
-			error: null,
-			hasMore: true,
-			lastEvaluatedKey: undefined,
-			scannedCount: 0,
-		})
-	}, [])
+		setQueryState(tableName, createInitialQueryState())
+	}, [tableName, setQueryState])
 
 	return {
 		...state,
-		queryParams,
 		executeQuery,
 		fetchNextPage,
 		refresh,

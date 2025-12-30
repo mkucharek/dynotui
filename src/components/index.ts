@@ -1,16 +1,18 @@
 // Layout
 
+// Feedback
+export { ErrorPanel, type ErrorPanelProps } from './error-panel.js'
+// Forms
 export {
 	InlineSelector,
 	type InlineSelectorProps,
 	type SelectorItem,
 } from './forms/inline-selector.js'
-// Forms
-export { QueryForm, type QueryFormProps } from './forms/query-form.js'
+export { QueryForm, type QueryFormOutput, type QueryFormProps } from './forms/query-form.js'
 export { ScanFilterForm, type ScanFilterFormProps } from './forms/scan-filter-form.js'
 export { ItemDetail, type ItemDetailProps } from './item-detail.js'
 export { Footer, type FooterProps, type KeyBinding } from './layout/footer.js'
-export { Header } from './layout/header.js'
+export { Header, type HeaderProps } from './layout/header.js'
 export { Panel, type PanelProps } from './layout/panel.js'
 export { SplitLayout, type SplitLayoutProps } from './layout/split-layout.js'
 export { Loading, type LoadingProps } from './loading.js'

@@ -9,8 +9,10 @@ import type { ViewState } from '../types/navigation.js'
 
 const savedConfig = loadUserConfig()
 
-export type FocusedPanel = 'sidebar' | 'main'
-export type SidebarSection = 'profiles' | 'regions' | 'tables'
+export type FocusedPanel = 'connection' | 'browse' | 'main'
+export type ConnectionTab = 'profile' | 'region'
+export type BrowseTab = 'tables' | 'saved'
+export type InputMode = 'sidebar' | 'normal' | 'query-form' | 'scan-filter' | 'item-detail'
 
 export const DEFAULT_PAGE_SIZE = 25
 
@@ -23,6 +25,31 @@ export type ScanState = {
 	scannedCount: number
 	filterConditions: FilterCondition[]
 	initialized: boolean
+}
+
+export type QueryState = {
+	items: Record<string, unknown>[]
+	isLoading: boolean
+	error: ParsedDynamoDBError | null
+	hasMore: boolean
+	lastEvaluatedKey: Record<string, unknown> | undefined
+	scannedCount: number
+	queryParams: QueryParamsCache | null
+	initialized: boolean
+}
+
+export type QueryParamsCache = {
+	indexName?: string
+	partitionKey: { name: string; value: string | number }
+	sortKey?: {
+		name: string
+		value: string | number
+		operator?: 'eq' | 'lt' | 'lte' | 'gt' | 'gte' | 'between' | 'begins_with'
+		valueTo?: string | number
+	}
+	filterConditions?: FilterCondition[]
+	limit?: number
+	scanIndexForward?: boolean
 }
 
 export type TablesState = {
@@ -46,8 +73,11 @@ export type AppState = {
 	history: ViewState[]
 	tablesState: TablesState
 	scanStateCache: Map<string, ScanState>
+	queryStateCache: Map<string, QueryState>
 	focusedPanel: FocusedPanel
-	sidebarSection: SidebarSection
+	connectionTab: ConnectionTab
+	browseTab: BrowseTab
+	inputMode: InputMode
 
 	setRuntimeProfile: (profile: string | undefined, source: ConfigSource) => void
 	setRuntimeRegion: (region: string, source: ConfigSource) => void
@@ -70,9 +100,15 @@ export type AppState = {
 	getScanState: (tableName: string) => ScanState
 	setScanState: (tableName: string, state: ScanState) => void
 	clearScanState: (tableName: string) => void
+	getQueryState: (tableName: string) => QueryState
+	setQueryState: (tableName: string, state: QueryState) => void
+	clearQueryState: (tableName: string) => void
 	setFocusedPanel: (panel: FocusedPanel) => void
-	setSidebarSection: (section: SidebarSection) => void
-	toggleFocusedPanel: () => void
+	setConnectionTab: (tab: ConnectionTab) => void
+	setBrowseTab: (tab: BrowseTab) => void
+	cycleFocusedPanel: (direction: 'next' | 'prev') => void
+	cycleCurrentPanelTab: (direction: 'next' | 'prev') => void
+	setInputMode: (mode: InputMode) => void
 }
 
 const initialTablesState: TablesState = {
@@ -96,6 +132,17 @@ export const createInitialScanState = (): ScanState => ({
 	initialized: false,
 })
 
+export const createInitialQueryState = (): QueryState => ({
+	items: [],
+	isLoading: false,
+	error: null,
+	hasMore: true,
+	lastEvaluatedKey: undefined,
+	scannedCount: 0,
+	queryParams: null,
+	initialized: false,
+})
+
 export const useAppStore = create<AppState>((set, get) => ({
 	runtimeProfile: { value: savedConfig.profile, source: 'config' },
 	runtimeRegion: {
@@ -114,8 +161,11 @@ export const useAppStore = create<AppState>((set, get) => ({
 	history: [],
 	tablesState: initialTablesState,
 	scanStateCache: new Map(),
-	focusedPanel: 'sidebar',
-	sidebarSection: 'tables',
+	queryStateCache: new Map(),
+	focusedPanel: 'connection',
+	connectionTab: 'profile',
+	browseTab: 'tables',
+	inputMode: 'sidebar',
 
 	initializeFromResolution: (config) => {
 		set({
@@ -138,6 +188,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 			region: newRegion,
 			tablesState: initialTablesState,
 			scanStateCache: new Map(),
+			queryStateCache: new Map(),
 		})
 		get().fetchTables(true)
 	},
@@ -149,6 +200,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 			region,
 			tablesState: initialTablesState,
 			scanStateCache: new Map(),
+			queryStateCache: new Map(),
 		})
 		get().fetchTables(true)
 	},
@@ -167,6 +219,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 			region,
 			tablesState: initialTablesState,
 			scanStateCache: new Map(),
+			queryStateCache: new Map(),
 		})
 		get().fetchTables(true)
 	},
@@ -202,20 +255,58 @@ export const useAppStore = create<AppState>((set, get) => ({
 	},
 
 	navigate: (view, from) =>
-		set((state) => ({
-			history: [...state.history, from ?? state.currentView],
-			currentView: view,
-			focusedPanel: view.view === 'table' || view.view === 'item' ? 'main' : state.focusedPanel,
-		})),
+		set((state) => {
+			let newInputMode: InputMode = state.inputMode
+			let newFocusedPanel: FocusedPanel = state.focusedPanel
+
+			if (view.view === 'table') {
+				newFocusedPanel = 'main'
+				newInputMode = 'normal'
+			} else if (view.view === 'item') {
+				newFocusedPanel = 'main'
+				newInputMode = 'item-detail'
+			} else if (view.view === 'home') {
+				newFocusedPanel = 'browse'
+				newInputMode = 'sidebar'
+			} else if (view.view === 'settings') {
+				newFocusedPanel = 'main'
+				newInputMode = 'normal'
+			}
+
+			return {
+				history: [...state.history, from ?? state.currentView],
+				currentView: view,
+				focusedPanel: newFocusedPanel,
+				inputMode: newInputMode,
+			}
+		}),
 
 	goBack: () =>
 		set((state) => {
 			const previousView = state.history.at(-1)
 			if (!previousView) return state
+
+			let newInputMode: InputMode = state.inputMode
+			let newFocusedPanel: FocusedPanel = state.focusedPanel
+
+			if (previousView.view === 'home') {
+				newFocusedPanel = 'browse'
+				newInputMode = 'sidebar'
+			} else if (previousView.view === 'table') {
+				newFocusedPanel = 'main'
+				newInputMode = 'normal'
+			} else if (previousView.view === 'item') {
+				newInputMode = 'item-detail'
+			} else if (previousView.view === 'settings') {
+				newFocusedPanel = 'main'
+				newInputMode = 'normal'
+			}
+
 			return {
 				history: state.history.slice(0, -1),
 				currentView: previousView,
-				focusedPanel: previousView.view === 'home' ? 'sidebar' : state.focusedPanel,
+				focusedPanel: newFocusedPanel,
+				inputMode: newInputMode,
 			}
 		}),
 
@@ -301,12 +392,82 @@ export const useAppStore = create<AppState>((set, get) => ({
 		set({ scanStateCache: newCache })
 	},
 
-	setFocusedPanel: (panel) => set({ focusedPanel: panel }),
+	// Query state actions
+	getQueryState: (tableName) => {
+		const cached = get().queryStateCache.get(tableName)
+		return cached ?? createInitialQueryState()
+	},
 
-	setSidebarSection: (section) => set({ sidebarSection: section, focusedPanel: 'sidebar' }),
+	setQueryState: (tableName, state) => {
+		const newCache = new Map(get().queryStateCache)
+		newCache.set(tableName, state)
+		set({ queryStateCache: newCache })
+	},
 
-	toggleFocusedPanel: () =>
-		set((state) => ({
-			focusedPanel: state.focusedPanel === 'sidebar' ? 'main' : 'sidebar',
-		})),
+	clearQueryState: (tableName) => {
+		const newCache = new Map(get().queryStateCache)
+		newCache.delete(tableName)
+		set({ queryStateCache: newCache })
+	},
+
+	setFocusedPanel: (panel) =>
+		set((state) => {
+			const inputMode = panel === 'main' ? 'normal' : 'sidebar'
+			// If already on this panel, cycle its tabs
+			if (state.focusedPanel === panel) {
+				if (panel === 'connection') {
+					const newTab = state.connectionTab === 'profile' ? 'region' : 'profile'
+					return { connectionTab: newTab }
+				}
+				if (panel === 'browse') {
+					const newTab = state.browseTab === 'tables' ? 'saved' : 'tables'
+					return { browseTab: newTab }
+				}
+				return state
+			}
+			// Otherwise switch to the panel
+			return { focusedPanel: panel, inputMode }
+		}),
+
+	setConnectionTab: (tab) => set({ connectionTab: tab }),
+
+	setBrowseTab: (tab) => set({ browseTab: tab }),
+
+	cycleFocusedPanel: (direction) =>
+		set((state) => {
+			const panels: FocusedPanel[] = ['connection', 'browse', 'main']
+			const currentIdx = panels.indexOf(state.focusedPanel)
+			const nextIdx =
+				direction === 'next'
+					? (currentIdx + 1) % panels.length
+					: (currentIdx - 1 + panels.length) % panels.length
+			const newPanel = panels[nextIdx]
+			const newInputMode: InputMode = newPanel === 'main' ? 'normal' : 'sidebar'
+			return { focusedPanel: newPanel, inputMode: newInputMode }
+		}),
+
+	cycleCurrentPanelTab: (direction) =>
+		set((state) => {
+			if (state.focusedPanel === 'connection') {
+				const tabs: ConnectionTab[] = ['profile', 'region']
+				const currentIdx = tabs.indexOf(state.connectionTab)
+				const nextIdx =
+					direction === 'next'
+						? (currentIdx + 1) % tabs.length
+						: (currentIdx - 1 + tabs.length) % tabs.length
+				return { connectionTab: tabs[nextIdx] }
+			}
+			if (state.focusedPanel === 'browse') {
+				const tabs: BrowseTab[] = ['tables', 'saved']
+				const currentIdx = tabs.indexOf(state.browseTab)
+				const nextIdx =
+					direction === 'next'
+						? (currentIdx + 1) % tabs.length
+						: (currentIdx - 1 + tabs.length) % tabs.length
+				return { browseTab: tabs[nextIdx] }
+			}
+			return state
+		}),
+
+	setInputMode: (mode) => set({ inputMode: mode }),
 }))

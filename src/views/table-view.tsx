@@ -7,9 +7,10 @@ import {
 	Pagination,
 	Panel,
 	QueryForm,
+	type QueryFormOutput,
 	ScanFilterForm,
 } from '../components/index.js'
-import type { FilterCondition, QueryParams } from '../schemas/query-params.js'
+import type { FilterCondition } from '../schemas/query-params.js'
 import { getErrorDisplayMessage } from '../services/dynamodb/errors.js'
 import { useAppStore } from '../store/app-store.js'
 import { useQuery } from '../store/use-query.js'
@@ -27,7 +28,7 @@ type Mode = 'scan' | 'query' | 'query-form' | 'scan-filter-form'
 export function TableView({ state, maxHeight = 20 }: TableViewProps) {
 	const { tableName } = state
 	const tableMaxRows = Math.max(5, maxHeight - 9)
-	const { navigate, goBack, focusedPanel } = useAppStore()
+	const { navigate, goBack, focusedPanel, setInputMode } = useAppStore()
 	const { fetchTableInfo, tableInfoCache } = useTables()
 	const scan = useScan(tableName)
 	const query = useQuery(tableName)
@@ -89,13 +90,10 @@ export function TableView({ state, maxHeight = 20 }: TableViewProps) {
 		(input, key) => {
 			if (key.escape) {
 				goBack()
-			} else if (input === 'j' || key.downArrow) {
-				setSelectedIndex((i) => Math.min(i + 1, items.length - 1))
-			} else if (input === 'k' || key.upArrow) {
-				setSelectedIndex((i) => Math.max(i - 1, 0))
 			} else if (input === 's') {
 				if (mode !== 'scan') {
 					setMode('scan')
+					setInputMode('normal')
 					setSelectedIndex(0)
 				} else {
 					// Clear filters and refresh when already in scan mode
@@ -103,8 +101,10 @@ export function TableView({ state, maxHeight = 20 }: TableViewProps) {
 				}
 			} else if (input === 'f' && mode === 'scan') {
 				setMode('scan-filter-form')
+				setInputMode('scan-filter')
 			} else if (input === 'q') {
 				setMode('query-form')
+				setInputMode('query-form')
 			} else if (input === 'n' && hasMore && !isLoading) {
 				if (mode === 'scan') {
 					scan.fetchNextPage()
@@ -118,33 +118,38 @@ export function TableView({ state, maxHeight = 20 }: TableViewProps) {
 					query.executeQuery(query.queryParams, true)
 				}
 			} else if (key.return && items[selectedIndex]) {
+				const navMode: 'scan' | 'query' = mode === 'query' ? 'query' : 'scan'
 				navigate(
 					{ view: 'item', tableName, item: items[selectedIndex] },
-					{ view: 'table', tableName, mode, selectedIndex },
+					{ view: 'table', tableName, mode: navMode, selectedIndex },
 				)
 			}
 		},
 		{ isActive: isMainFocused && (mode === 'scan' || mode === 'query') },
 	)
 
-	const handleQuerySubmit = (params: QueryParams) => {
+	const handleQuerySubmit = (params: QueryFormOutput) => {
 		setMode('query')
+		setInputMode('normal')
 		setSelectedIndex(0)
 		query.executeQuery(params, true)
 	}
 
 	const handleQueryCancel = () => {
 		setMode(state.mode === 'query' ? 'query' : 'scan')
+		setInputMode('normal')
 	}
 
 	const handleScanFilterSubmit = (conditions: FilterCondition[]) => {
 		setMode('scan')
+		setInputMode('normal')
 		setSelectedIndex(0)
 		scan.refresh(conditions)
 	}
 
 	const handleScanFilterCancel = () => {
 		setMode('scan')
+		setInputMode('normal')
 	}
 
 	return (
@@ -219,7 +224,10 @@ export function TableView({ state, maxHeight = 20 }: TableViewProps) {
 							selectedIndex={selectedIndex}
 							onSelect={setSelectedIndex}
 							maxHeight={tableMaxRows}
-							focused={false}
+							focused={isMainFocused}
+							onEnter={(row) => {
+								navigate({ view: 'item', tableName, item: row }, state)
+							}}
 						/>
 					)}
 				</Panel>

@@ -41,8 +41,8 @@ function jsonToLines(obj: unknown, indent = 0, path = 'root'): JsonLine[] {
 			lines.push({ id: nextId(`${path}-open`), indent, isOpener: true, bracket: '[' })
 			obj.forEach((item, i) => {
 				const itemLines = jsonToLines(item, indent + 2, `${path}[${i}]`)
-				if (i < obj.length - 1 && itemLines.length > 0) {
-					const last = itemLines[itemLines.length - 1]
+				const last = itemLines[itemLines.length - 1]
+				if (i < obj.length - 1 && last) {
 					if (last.value) last.value += ','
 					else if (last.bracket) last.bracket += ','
 				}
@@ -58,29 +58,31 @@ function jsonToLines(obj: unknown, indent = 0, path = 'root'): JsonLine[] {
 			lines.push({ id: nextId(`${path}-open`), indent, isOpener: true, bracket: '{' })
 			entries.forEach(([key, val], i) => {
 				const valLines = jsonToLines(val, indent + 2, `${path}.${key}`)
-				if (valLines.length === 1 && valLines[0].value) {
+				const firstLine = valLines[0]
+				const lastLine = valLines[valLines.length - 1]
+				if (valLines.length === 1 && firstLine?.value) {
 					const comma = i < entries.length - 1 ? ',' : ''
 					lines.push({
 						id: nextId(`${path}.${key}`),
 						indent: indent + 2,
 						key,
-						value: valLines[0].value + comma,
-						valueColor: valLines[0].valueColor,
+						value: firstLine.value + comma,
+						valueColor: firstLine.valueColor,
 					})
-				} else {
+				} else if (firstLine && lastLine) {
 					lines.push({
 						id: nextId(`${path}.${key}-open`),
 						indent: indent + 2,
 						key,
 						isOpener: true,
-						bracket: valLines[0].bracket,
+						bracket: firstLine.bracket,
 					})
 					lines.push(...valLines.slice(1, -1))
-					const lastLine = valLines[valLines.length - 1]
 					const comma = i < entries.length - 1 ? ',' : ''
 					lines.push({
-						...lastLine,
 						id: nextId(`${path}.${key}-close`),
+						indent: lastLine.indent,
+						isCloser: lastLine.isCloser,
 						bracket: (lastLine.bracket ?? '') + comma,
 					})
 				}
@@ -120,10 +122,10 @@ export function ItemDetail({ item, maxHeight = 30, focused = true }: ItemDetailP
 	const visibleLines = lines.slice(scrollOffset, scrollOffset + maxHeight)
 
 	return (
-		<Box flexDirection="column">
+		<Box flexDirection="column" overflow="hidden">
 			{visibleLines.map((line) => (
 				<Box key={line.id}>
-					<Text>
+					<Text wrap="truncate">
 						{'  '.repeat(line.indent / 2)}
 						{line.key && (
 							<>

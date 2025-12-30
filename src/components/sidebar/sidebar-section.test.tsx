@@ -9,21 +9,21 @@ const mockItems: SidebarItem[] = [
 ]
 
 describe('SidebarSection', () => {
-	it('renders title with shortcut', () => {
-		const { lastFrame } = render(<SidebarSection shortcut="1" title="Test Section" items={[]} />)
+	it('renders title with expand indicator', () => {
+		const { lastFrame } = render(<SidebarSection title="Test Section" items={[]} />)
 		const frame = lastFrame() ?? ''
-		expect(frame).toContain('[1]')
+		expect(frame).toContain('▾')
 		expect(frame).toContain('Test Section')
 	})
 
 	it('shows item count', () => {
-		const { lastFrame } = render(<SidebarSection shortcut="1" title="Items" items={mockItems} />)
+		const { lastFrame } = render(<SidebarSection title="Items" items={mockItems} />)
 		const frame = lastFrame() ?? ''
-		expect(frame).toContain('(3)')
+		expect(frame).toContain('3')
 	})
 
 	it('renders items', () => {
-		const { lastFrame } = render(<SidebarSection shortcut="1" title="Items" items={mockItems} />)
+		const { lastFrame } = render(<SidebarSection title="Items" items={mockItems} />)
 		const frame = lastFrame() ?? ''
 		expect(frame).toContain('First Item')
 		expect(frame).toContain('Second Item')
@@ -31,35 +31,29 @@ describe('SidebarSection', () => {
 	})
 
 	it('shows secondary text', () => {
-		const { lastFrame } = render(<SidebarSection shortcut="1" title="Items" items={mockItems} />)
+		const { lastFrame } = render(<SidebarSection title="Items" items={mockItems} />)
 		const frame = lastFrame() ?? ''
 		expect(frame).toContain('extra')
 	})
 
 	it('shows active indicator', () => {
 		const { lastFrame } = render(
-			<SidebarSection shortcut="1" title="Items" items={mockItems} activeId="item2" />,
+			<SidebarSection title="Items" items={mockItems} activeId="item2" />,
 		)
 		const frame = lastFrame() ?? ''
-		expect(frame).toContain('◄')
+		expect(frame).toContain('●')
 	})
 
 	it('shows selection indicator when focused', () => {
 		const { lastFrame } = render(
-			<SidebarSection
-				shortcut="1"
-				title="Items"
-				items={mockItems}
-				selectedIndex={0}
-				focused={true}
-			/>,
+			<SidebarSection title="Items" items={mockItems} selectedIndex={0} focused={true} />,
 		)
 		const frame = lastFrame() ?? ''
-		expect(frame).toContain('>')
+		expect(frame).toContain('▸')
 	})
 
 	it('shows empty state', () => {
-		const { lastFrame } = render(<SidebarSection shortcut="1" title="Empty" items={[]} />)
+		const { lastFrame } = render(<SidebarSection title="Empty" items={[]} />)
 		const frame = lastFrame() ?? ''
 		expect(frame).toContain('No items')
 	})
@@ -68,7 +62,6 @@ describe('SidebarSection', () => {
 		const onSelect = vi.fn()
 		const { stdin } = render(
 			<SidebarSection
-				shortcut="1"
 				title="Items"
 				items={mockItems}
 				selectedIndex={0}
@@ -85,7 +78,6 @@ describe('SidebarSection', () => {
 		const onEnter = vi.fn()
 		const { stdin } = render(
 			<SidebarSection
-				shortcut="1"
 				title="Items"
 				items={mockItems}
 				selectedIndex={1}
@@ -105,26 +97,22 @@ describe('SidebarSection', () => {
 		}))
 
 		const { lastFrame } = render(
-			<SidebarSection shortcut="1" title="Items" items={manyItems} maxVisibleItems={3} />,
+			<SidebarSection title="Items" items={manyItems} maxVisibleItems={3} />,
 		)
 		const frame = lastFrame() ?? ''
-		// Should show count but limit visible items
-		expect(frame).toContain('(10)')
+		// Should show count
+		expect(frame).toContain('10')
 	})
 
 	it('shows error message', () => {
-		const { lastFrame } = render(
-			<SidebarSection shortcut="1" title="Items" items={[]} error="Token expired" />,
-		)
+		const { lastFrame } = render(<SidebarSection title="Items" items={[]} error="Token expired" />)
 		const frame = lastFrame() ?? ''
 		expect(frame).toContain('Token expired')
 		expect(frame).not.toContain('No items')
 	})
 
 	it('shows loading state', () => {
-		const { lastFrame } = render(
-			<SidebarSection shortcut="1" title="Items" items={[]} isLoading={true} />,
-		)
+		const { lastFrame } = render(<SidebarSection title="Items" items={[]} isLoading={true} />)
 		const frame = lastFrame() ?? ''
 		expect(frame).toContain('Loading...')
 		expect(frame).not.toContain('No items')
@@ -132,7 +120,7 @@ describe('SidebarSection', () => {
 
 	it('shows items over loading when items exist', () => {
 		const { lastFrame } = render(
-			<SidebarSection shortcut="1" title="Items" items={mockItems} isLoading={true} />,
+			<SidebarSection title="Items" items={mockItems} isLoading={true} />,
 		)
 		const frame = lastFrame() ?? ''
 		expect(frame).toContain('First Item')

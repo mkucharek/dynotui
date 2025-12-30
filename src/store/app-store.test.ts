@@ -145,8 +145,9 @@ describe('useAppStore', () => {
 	describe('focus management', () => {
 		beforeEach(() => {
 			useAppStore.setState({
-				focusedPanel: 'sidebar',
-				sidebarSection: 'tables',
+				focusedPanel: 'connection',
+				connectionTab: 'profile',
+				browseTab: 'tables',
 			})
 		})
 
@@ -155,26 +156,31 @@ describe('useAppStore', () => {
 			expect(useAppStore.getState().focusedPanel).toBe('main')
 		})
 
-		it('setSidebarSection changes section and focuses sidebar', () => {
-			useAppStore.getState().setFocusedPanel('main')
-			useAppStore.getState().setSidebarSection('profiles')
-			expect(useAppStore.getState().sidebarSection).toBe('profiles')
-			expect(useAppStore.getState().focusedPanel).toBe('sidebar')
+		it('setConnectionTab changes connection tab', () => {
+			useAppStore.getState().setConnectionTab('region')
+			expect(useAppStore.getState().connectionTab).toBe('region')
 		})
 
-		it('toggleFocusedPanel switches between panels', () => {
-			expect(useAppStore.getState().focusedPanel).toBe('sidebar')
-			useAppStore.getState().toggleFocusedPanel()
+		it('setBrowseTab changes browse tab', () => {
+			useAppStore.getState().setBrowseTab('saved')
+			expect(useAppStore.getState().browseTab).toBe('saved')
+		})
+
+		it('cycleFocusedPanel cycles through panels', () => {
+			expect(useAppStore.getState().focusedPanel).toBe('connection')
+			useAppStore.getState().cycleFocusedPanel('next')
+			expect(useAppStore.getState().focusedPanel).toBe('browse')
+			useAppStore.getState().cycleFocusedPanel('next')
 			expect(useAppStore.getState().focusedPanel).toBe('main')
-			useAppStore.getState().toggleFocusedPanel()
-			expect(useAppStore.getState().focusedPanel).toBe('sidebar')
+			useAppStore.getState().cycleFocusedPanel('next')
+			expect(useAppStore.getState().focusedPanel).toBe('connection')
 		})
 
-		it('goBack restores sidebar focus when returning to home', () => {
+		it('goBack restores browse focus when returning to home', () => {
 			useAppStore.getState().navigate({ view: 'table', tableName: 'users', mode: 'scan' })
 			useAppStore.getState().setFocusedPanel('main')
 			useAppStore.getState().goBack()
-			expect(useAppStore.getState().focusedPanel).toBe('sidebar')
+			expect(useAppStore.getState().focusedPanel).toBe('browse')
 		})
 	})
 })

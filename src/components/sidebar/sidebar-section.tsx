@@ -1,5 +1,6 @@
 import { Box, Text, useInput } from 'ink'
 import { useState } from 'react'
+import { colors, symbols } from '../../theme.js'
 
 export type SidebarItem = {
 	id: string
@@ -8,8 +9,7 @@ export type SidebarItem = {
 }
 
 export type SidebarSectionProps = {
-	shortcut: string
-	title: string
+	title?: string
 	items: SidebarItem[]
 	activeId?: string
 	selectedIndex?: number
@@ -23,7 +23,6 @@ export type SidebarSectionProps = {
 }
 
 export function SidebarSection({
-	shortcut,
 	title,
 	items,
 	activeId,
@@ -48,6 +47,9 @@ export function SidebarSection({
 	const visibleEnd = Math.min(items.length, visibleStart + visibleCount)
 	const visibleItems = items.slice(visibleStart, visibleEnd)
 
+	const hasScrollUp = visibleStart > 0
+	const hasScrollDown = visibleEnd < items.length
+
 	const handleSelect = (index: number) => {
 		if (onSelect) {
 			onSelect(index)
@@ -71,22 +73,38 @@ export function SidebarSection({
 		{ isActive: focused },
 	)
 
+	const titleColor = focused ? colors.focus : colors.textSecondary
+	const separatorChar = symbols.sectionSeparator
+
 	return (
-		<Box flexDirection="column" flexGrow={flexGrow} marginBottom={1}>
-			<Box>
-				<Text color={focused ? 'cyan' : undefined} bold>
-					[{shortcut}] {title}
-				</Text>
-				{items.length > 0 && <Text dimColor> ({items.length})</Text>}
-			</Box>
-			<Text color={focused ? 'cyan' : 'gray'}>{'─'.repeat(26)}</Text>
+		<Box flexDirection="column" flexGrow={flexGrow}>
+			{/* Optional header with title */}
+			{title && (
+				<>
+					<Box justifyContent="space-between">
+						<Box gap={1}>
+							<Text color={titleColor}>{symbols.expanded}</Text>
+							<Text color={titleColor} bold={focused}>
+								{title}
+							</Text>
+						</Box>
+						<Box gap={1}>
+							{items.length > 0 && <Text color={colors.textMuted}>{items.length}</Text>}
+							{hasScrollUp && <Text color={colors.textMuted}>{symbols.scrollUp}</Text>}
+						</Box>
+					</Box>
+					<Text color={focused ? colors.focus : colors.border}>{separatorChar.repeat(24)}</Text>
+				</>
+			)}
+
+			{/* Items list */}
 			<Box flexDirection="column" flexGrow={1} overflowY="hidden">
 				{error ? (
-					<Text color="red">{error}</Text>
+					<Text color={colors.error}>{error}</Text>
 				) : isLoading && items.length === 0 ? (
-					<Text dimColor>Loading...</Text>
+					<Text color={colors.textMuted}>Loading...</Text>
 				) : items.length === 0 ? (
-					<Text dimColor>No items</Text>
+					<Text color={colors.textMuted}>No items</Text>
 				) : (
 					visibleItems.map((item, i) => {
 						const actualIndex = visibleStart + i
@@ -94,18 +112,29 @@ export function SidebarSection({
 						const isActive = item.id === activeId
 
 						return (
-							<Box key={item.id}>
-								<Text color={isSelected ? 'cyan' : undefined}>{isSelected ? '>' : ' '} </Text>
-								<Text color={isSelected ? 'cyan' : undefined} bold={isSelected}>
-									{item.label}
-								</Text>
-								{item.secondary && <Text dimColor> {item.secondary}</Text>}
-								<Text color="green">{isActive ? ' ◄' : ''}</Text>
+							<Box key={item.id} justifyContent="space-between">
+								<Box>
+									<Text color={isSelected ? colors.focus : colors.textMuted}>
+										{isSelected ? symbols.selected : ' '}{' '}
+									</Text>
+									<Text color={isSelected ? colors.focus : colors.text} bold={isSelected}>
+										{item.label}
+									</Text>
+									{item.secondary && <Text color={colors.textMuted}> {item.secondary}</Text>}
+								</Box>
+								{isActive && <Text color={colors.active}>{symbols.active}</Text>}
 							</Box>
 						)
 					})
 				)}
 			</Box>
+
+			{/* Scroll down indicator */}
+			{hasScrollDown && (
+				<Box justifyContent="flex-end">
+					<Text color={colors.textMuted}>{symbols.scrollDown}</Text>
+				</Box>
+			)}
 		</Box>
 	)
 }

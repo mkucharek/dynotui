@@ -1,10 +1,12 @@
 import { Box, Text, useInput } from 'ink'
 import { useCallback, useMemo, useState } from 'react'
+import { colors, symbols } from '../../theme.js'
 
 export type Column<T> = {
 	key: keyof T | string
 	header: string
 	width?: number
+	align?: 'left' | 'right'
 	render?: (value: unknown, row: T) => string
 }
 
@@ -27,11 +29,61 @@ function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
 	}, obj)
 }
 
-function formatValue(value: unknown): string {
-	if (value === null) return 'null'
-	if (value === undefined) return ''
-	if (typeof value === 'object') return JSON.stringify(value)
-	return String(value)
+type FormattedValue = {
+	text: string
+	color?: string
+	isNumber?: boolean
+}
+
+function formatValue(value: unknown): FormattedValue {
+	if (value === null) {
+		return { text: symbols.null, color: colors.textMuted }
+	}
+	if (value === undefined) {
+		return { text: '', color: colors.textMuted }
+	}
+
+	// Binary data (Buffer or Uint8Array)
+	if (
+		value instanceof Uint8Array ||
+		(value && typeof value === 'object' && 'type' in value && value.type === 'Buffer')
+	) {
+		const len =
+			value instanceof Uint8Array
+				? value.length
+				: ((value as { data?: unknown[] }).data?.length ?? 0)
+		return { text: `<binary ${len}b>`, color: colors.textMuted }
+	}
+
+	// Sets (DynamoDB SS, NS, BS)
+	if (Array.isArray(value)) {
+		if (value.length <= 3) {
+			return { text: `{${value.join(', ')}}`, color: colors.dataValue }
+		}
+		return { text: `{${value.length} items}`, color: colors.textSecondary }
+	}
+
+	// Objects/Maps
+	if (typeof value === 'object') {
+		const keys = Object.keys(value)
+		return { text: `{${keys.length} keys}`, color: colors.textSecondary }
+	}
+
+	// Numbers
+	if (typeof value === 'number') {
+		return { text: String(value), color: colors.dataValue, isNumber: true }
+	}
+
+	// Booleans
+	if (typeof value === 'boolean') {
+		return { text: value ? 'true' : 'false', color: colors.focus }
+	}
+
+	return { text: String(value) }
+}
+
+function formatValueString(value: unknown): string {
+	return formatValue(value).text
 }
 
 function calculateColumnWidths<T extends Record<string, unknown>>(
@@ -43,11 +95,25 @@ function calculateColumnWidths<T extends Record<string, unknown>>(
 		const headerLen = col.header.length
 		const maxDataLen = data.reduce((max, row) => {
 			const value = getNestedValue(row, col.key as string)
-			const formatted = col.render ? col.render(value, row) : formatValue(value)
+			const formatted = col.render ? col.render(value, row) : formatValueString(value)
 			return Math.max(max, formatted.length)
 		}, 0)
 		return Math.min(col.width ?? Math.max(headerLen, maxDataLen), maxWidth)
 	})
+}
+
+function detectAlignment<T extends Record<string, unknown>>(
+	data: T[],
+	column: Column<T>,
+): 'left' | 'right' {
+	if (column.align) return column.align
+	// Check first few values to detect if column is numeric
+	const sample = data.slice(0, 5)
+	const numericCount = sample.filter((row) => {
+		const value = getNestedValue(row, column.key as string)
+		return typeof value === 'number'
+	}).length
+	return numericCount > sample.length / 2 ? 'right' : 'left'
 }
 
 export function DataTable<T extends Record<string, unknown>>({
@@ -62,7 +128,7 @@ export function DataTable<T extends Record<string, unknown>>({
 	const [internalIndex, setInternalIndex] = useState(0)
 	const selectedIndex = controlledIndex ?? internalIndex
 
-	const columns = useMemo(() => {
+	const columns: Column<T>[] = useMemo(() => {
 		if (propColumns) return propColumns
 		if (data.length === 0) return []
 		const keys = Object.keys(data[0] ?? {})
@@ -70,6 +136,11 @@ export function DataTable<T extends Record<string, unknown>>({
 	}, [propColumns, data])
 
 	const columnWidths = useMemo(() => calculateColumnWidths(data, columns), [data, columns])
+
+	const columnAlignments = useMemo(
+		() => columns.map((col) => detectAlignment(data, col)),
+		[data, columns],
+	)
 
 	const handleSelect = useCallback(
 		(index: number) => {
@@ -100,7 +171,7 @@ export function DataTable<T extends Record<string, unknown>>({
 	if (data.length === 0) {
 		return (
 			<Box padding={1}>
-				<Text dimColor>No data</Text>
+				<Text color={colors.textMuted}>No data</Text>
 			</Box>
 		)
 	}
@@ -109,41 +180,67 @@ export function DataTable<T extends Record<string, unknown>>({
 	const visibleEnd = Math.min(data.length, visibleStart + maxHeight)
 	const visibleData = data.slice(visibleStart, visibleEnd)
 
+	const hasScrollUp = visibleStart > 0
+	const hasScrollDown = visibleEnd < data.length
+
+	const totalWidth = columnWidths.reduce((a, b) => a + b + 1, 0) + 2 // +2 for selection indicator
+
 	return (
 		<Box flexDirection="column">
+			{/* Scroll up indicator */}
+			{hasScrollUp && (
+				<Box justifyContent="flex-end" width={totalWidth}>
+					<Text color={colors.textMuted}>{symbols.scrollUp}</Text>
+				</Box>
+			)}
+
 			{/* Header */}
 			<Box>
-				{columns.map((col, i) => (
-					<Box key={col.key as string} width={columnWidths[i]} marginRight={1}>
-						<Text bold color="cyan">
-							{col.header.slice(0, columnWidths[i]).padEnd(columnWidths[i])}
-						</Text>
-					</Box>
-				))}
+				<Box width={2} />
+				{columns.map((col, i) => {
+					const align = columnAlignments[i]
+					const width = columnWidths[i] ?? 10
+					const header = col.header.slice(0, width)
+					const padded = align === 'right' ? header.padStart(width) : header.padEnd(width)
+					return (
+						<Box key={col.key as string} width={width} marginRight={1}>
+							<Text bold color={colors.text}>
+								{padded}
+							</Text>
+						</Box>
+					)
+				})}
 			</Box>
 
 			{/* Separator */}
 			<Box>
-				<Text dimColor>{'─'.repeat(columnWidths.reduce((a, b) => a + b + 1, 0))}</Text>
+				<Box width={2} />
+				<Text color={colors.border}>{symbols.headerSeparator.repeat(totalWidth - 2)}</Text>
 			</Box>
 
 			{/* Rows */}
 			{visibleData.map((row, i) => {
 				const actualIndex = visibleStart + i
-				const isSelected = actualIndex === selectedIndex
+				const isSelected = actualIndex === selectedIndex && focused
 				return (
 					<Box key={actualIndex}>
+						{/* Selection indicator */}
+						<Text color={isSelected ? colors.focus : colors.textMuted} inverse={isSelected}>
+							{isSelected ? symbols.selected : ' '}{' '}
+						</Text>
 						{columns.map((col, colIdx) => {
 							const value = getNestedValue(row, col.key as string)
-							const formatted = col.render ? col.render(value, row) : formatValue(value)
-							const truncated = formatted.slice(0, columnWidths[colIdx])
+							const formatted: FormattedValue = col.render
+								? { text: col.render(value, row) }
+								: formatValue(value)
+							const width = columnWidths[colIdx] ?? 10
+							const truncated = formatted.text.slice(0, width)
+							const align = columnAlignments[colIdx]
+							const padded = align === 'right' ? truncated.padStart(width) : truncated.padEnd(width)
 							return (
-								<Box key={col.key as string} width={columnWidths[colIdx]} marginRight={1}>
-									<Text
-										backgroundColor={isSelected ? 'cyan' : undefined}
-										color={isSelected ? 'black' : undefined}
-									>
-										{truncated.padEnd(columnWidths[colIdx])}
+								<Box key={col.key as string} width={width} marginRight={1}>
+									<Text color={isSelected ? colors.focus : formatted.color} inverse={isSelected}>
+										{padded}
 									</Text>
 								</Box>
 							)
@@ -152,14 +249,22 @@ export function DataTable<T extends Record<string, unknown>>({
 				)
 			})}
 
-			{/* Scroll indicator */}
-			{data.length > maxHeight && (
-				<Box marginTop={1}>
-					<Text dimColor>
-						Showing {visibleStart + 1}-{visibleEnd} of {data.length}
-					</Text>
+			{/* Scroll down indicator */}
+			{hasScrollDown && (
+				<Box justifyContent="flex-end" width={totalWidth}>
+					<Text color={colors.textMuted}>{symbols.scrollDown}</Text>
 				</Box>
 			)}
+
+			{/* Position indicator */}
+			<Box marginTop={1}>
+				<Text color={colors.textSecondary}>
+					{visibleEnd}/{data.length}
+				</Text>
+				{hasScrollDown && (
+					<Text color={colors.textMuted}> {symbols.breadcrumbSeparator} More (n)</Text>
+				)}
+			</Box>
 		</Box>
 	)
 }

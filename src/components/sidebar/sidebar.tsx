@@ -1,10 +1,12 @@
-import { Box } from 'ink'
+import { Box, Text } from 'ink'
 import { useEffect, useMemo, useState } from 'react'
 import { getAwsRegions, listProfiles } from '../../services/aws-config.js'
 import { getErrorDisplayMessage } from '../../services/dynamodb/errors.js'
 import { resetClient } from '../../services/dynamodb/index.js'
 import { useAppStore } from '../../store/app-store.js'
 import { useTables } from '../../store/use-tables.js'
+import { colors } from '../../theme.js'
+import { SidebarPanel } from './sidebar-panel.js'
 import { type SidebarItem, SidebarSection } from './sidebar-section.js'
 
 export type SidebarProps = {
@@ -16,7 +18,8 @@ export function Sidebar({ maxHeight }: SidebarProps) {
 		profile,
 		region,
 		focusedPanel,
-		sidebarSection,
+		connectionTab,
+		browseTab,
 		setRuntimeProfile,
 		setRuntimeRegion,
 		navigate,
@@ -109,61 +112,88 @@ export function Sidebar({ maxHeight }: SidebarProps) {
 		navigate({ view: 'table', tableName: item.id, mode: 'scan' }, currentView)
 	}
 
-	const currentTableName = currentView.view === 'table' ? currentView.tableName : undefined
+	const currentTableName =
+		currentView.view === 'table' || currentView.view === 'item' ? currentView.tableName : undefined
+	const isConnectionFocused = focusedPanel === 'connection'
+	const isBrowseFocused = focusedPanel === 'browse'
 
-	const profilesHeight = Math.min(profileItems.length + 2, 6)
-	const regionsHeight = Math.min(regionItems.length + 2, 8)
-	const tablesHeight = maxHeight
-		? Math.max(5, maxHeight - profilesHeight - regionsHeight - 4)
-		: undefined
+	// Calculate heights: Connection panel gets fixed height, Browse gets the rest
+	// Panel height includes: border (2) + tab header (1) + separator (1) + content
+	const connectionPanelHeight = 10
+	const browsePanelHeight = maxHeight ? maxHeight - connectionPanelHeight - 1 : undefined
 
 	return (
-		<Box
-			flexDirection="column"
-			paddingX={1}
-			paddingY={0}
-			flexGrow={1}
-			height={maxHeight}
-			overflowY="hidden"
-		>
-			<SidebarSection
-				shortcut="1"
-				title="Profiles"
-				items={profileItems}
-				activeId={profile ?? 'default'}
-				selectedIndex={profileIndex}
-				onSelect={setProfileIndex}
-				onEnter={handleProfileSelect}
-				focused={focusedPanel === 'sidebar' && sidebarSection === 'profiles'}
-				maxVisibleItems={4}
-			/>
+		<Box flexDirection="column" height={maxHeight} overflowY="hidden">
+			{/* Connection Panel (Profile / Region) */}
+			<SidebarPanel
+				tabs={[
+					{ id: 'profile', label: 'Profile' },
+					{ id: 'region', label: 'Region' },
+				]}
+				activeTab={connectionTab}
+				panelNumber={1}
+				focused={isConnectionFocused}
+				height={connectionPanelHeight}
+			>
+				{connectionTab === 'profile' && (
+					<SidebarSection
+						items={profileItems}
+						activeId={profile ?? 'default'}
+						selectedIndex={profileIndex}
+						onSelect={setProfileIndex}
+						onEnter={handleProfileSelect}
+						focused={isConnectionFocused}
+						maxVisibleItems={connectionPanelHeight - 4}
+					/>
+				)}
+				{connectionTab === 'region' && (
+					<SidebarSection
+						items={regionItems}
+						activeId={region}
+						selectedIndex={regionIndex}
+						onSelect={setRegionIndex}
+						onEnter={handleRegionSelect}
+						focused={isConnectionFocused}
+						maxVisibleItems={connectionPanelHeight - 4}
+					/>
+				)}
+			</SidebarPanel>
 
-			<SidebarSection
-				shortcut="2"
-				title="Regions"
-				items={regionItems}
-				activeId={region}
-				selectedIndex={regionIndex}
-				onSelect={setRegionIndex}
-				onEnter={handleRegionSelect}
-				focused={focusedPanel === 'sidebar' && sidebarSection === 'regions'}
-				maxVisibleItems={6}
-			/>
-
-			<SidebarSection
-				shortcut="3"
-				title="Tables"
-				items={tableItems}
-				activeId={currentTableName}
-				selectedIndex={tableIndex}
-				onSelect={setTableIndex}
-				onEnter={handleTableSelect}
-				focused={focusedPanel === 'sidebar' && sidebarSection === 'tables'}
-				maxVisibleItems={tablesHeight}
+			{/* Browse Panel (Tables / Saved) */}
+			<SidebarPanel
+				tabs={[
+					{ id: 'tables', label: 'Tables' },
+					{ id: 'saved', label: 'Saved' },
+				]}
+				activeTab={browseTab}
+				panelNumber={2}
+				focused={isBrowseFocused}
+				height={browsePanelHeight}
 				flexGrow={1}
-				error={error ? getErrorDisplayMessage(error) : undefined}
-				isLoading={isLoading}
-			/>
+			>
+				{browseTab === 'tables' && (
+					<SidebarSection
+						items={tableItems}
+						activeId={currentTableName}
+						selectedIndex={tableIndex}
+						onSelect={setTableIndex}
+						onEnter={handleTableSelect}
+						focused={isBrowseFocused}
+						maxVisibleItems={browsePanelHeight ? browsePanelHeight - 4 : undefined}
+						flexGrow={1}
+						error={error ? getErrorDisplayMessage(error) : undefined}
+						isLoading={isLoading}
+					/>
+				)}
+				{browseTab === 'saved' && (
+					<Box flexDirection="column" padding={1}>
+						<Text color={colors.textMuted}>No saved queries yet</Text>
+						<Text color={colors.textMuted} dimColor>
+							Save queries from table view
+						</Text>
+					</Box>
+				)}
+			</SidebarPanel>
 		</Box>
 	)
 }

@@ -8,23 +8,30 @@ export type SplitLayoutProps = {
 	height?: number
 }
 
-export function SplitLayout({ sidebar, main, sidebarWidth = 30, height }: SplitLayoutProps) {
+export function SplitLayout({ sidebar, main, sidebarWidth = 28, height }: SplitLayoutProps) {
 	return (
 		<Box flexDirection="row" width="100%" height={height} overflowY="hidden">
+			{/* Sidebar */}
 			<Box
 				flexDirection="column"
 				width={sidebarWidth}
+				flexShrink={0}
 				height={height}
-				borderStyle="single"
-				borderRight={true}
-				borderTop={false}
-				borderBottom={false}
-				borderLeft={false}
 				overflowY="hidden"
 			>
 				{sidebar}
 			</Box>
-			<Box flexDirection="column" flexGrow={1} height={height} overflowY="hidden">
+
+			{/* Main content */}
+			<Box
+				flexDirection="column"
+				flexGrow={1}
+				flexShrink={1}
+				height={height}
+				overflowY="hidden"
+				overflow="hidden"
+				paddingLeft={1}
+			>
 				{main}
 			</Box>
 		</Box>

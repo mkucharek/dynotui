@@ -167,8 +167,8 @@ describe('queryParamsSchema', () => {
 			],
 		})
 		expect(result.filterConditions).toHaveLength(2)
-		expect(result.filterConditions?.[0].attribute).toBe('status')
-		expect(result.filterConditions?.[1].operator).toBe('gt')
+		expect(result.filterConditions?.[0]?.attribute).toBe('status')
+		expect(result.filterConditions?.[1]?.operator).toBe('gt')
 	})
 
 	it('accepts empty filter conditions array', () => {

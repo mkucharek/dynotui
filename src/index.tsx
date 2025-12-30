@@ -2,9 +2,10 @@ import { stdout } from 'node:process'
 import { Box, render, Text, useApp, useInput, useStdout } from 'ink'
 import meow from 'meow'
 import { useEffect } from 'react'
-import { Footer, Sidebar, SplitLayout } from './components/index.js'
+import { Footer, Header, Panel, Sidebar, SplitLayout } from './components/index.js'
 import { resolveConfig } from './services/config-resolver.js'
 import { useAppStore } from './store/app-store.js'
+import { borders, colors } from './theme.js'
 import type { RuntimeConfig } from './types/config.js'
 import { ItemView, SettingsView, TableView } from './views/index.js'
 
@@ -49,33 +50,49 @@ const resolvedConfig = resolveConfig({
 })
 
 function MainPanel({ terminalHeight }: { terminalHeight: number }) {
-	const { currentView } = useAppStore()
-	const availableHeight = Math.max(10, terminalHeight - 6)
+	const { currentView, focusedPanel } = useAppStore()
+	const isMainFocused = focusedPanel === 'main'
 
 	if (currentView.view === 'home') {
 		return (
 			<Box
 				flexDirection="column"
-				padding={1}
 				flexGrow={1}
 				justifyContent="center"
 				alignItems="center"
+				height={terminalHeight}
 			>
-				<Text dimColor>Select a table from the sidebar</Text>
+				<Text color={colors.textMuted}>Select a table from the sidebar</Text>
+				<Text color={colors.textMuted} dimColor>
+					Use j/k to navigate, Enter to select
+				</Text>
 			</Box>
 		)
 	}
 
 	if (currentView.view === 'settings') {
-		return <SettingsView />
+		return (
+			<Panel title="Settings" focused={isMainFocused} flexGrow={1} height={terminalHeight}>
+				<SettingsView />
+			</Panel>
+		)
 	}
 
 	if (currentView.view === 'table') {
-		return <TableView state={currentView} maxHeight={availableHeight} />
+		const title = `${currentView.tableName} › ${currentView.mode}`
+		return (
+			<Panel title={title} focused={isMainFocused} flexGrow={1} height={terminalHeight}>
+				<TableView state={currentView} maxHeight={terminalHeight - 4} />
+			</Panel>
+		)
 	}
 
 	if (currentView.view === 'item') {
-		return <ItemView state={currentView} />
+		return (
+			<Panel title="Item Details" focused={isMainFocused} flexGrow={1} height={terminalHeight}>
+				<ItemView state={currentView} />
+			</Panel>
+		)
 	}
 
 	return null
@@ -87,18 +104,20 @@ function App({ initialConfig }: { initialConfig: RuntimeConfig }) {
 	const {
 		currentView,
 		focusedPanel,
-		toggleFocusedPanel,
+		cycleFocusedPanel,
+		cycleCurrentPanelTab,
 		setFocusedPanel,
-		setSidebarSection,
 		initializeFromResolution,
 	} = useAppStore()
 
 	const terminalHeight = stdoutStream?.rows ?? 24
+	const terminalWidth = stdoutStream?.columns ?? 80
 
 	useEffect(() => {
 		initializeFromResolution(initialConfig)
 	}, [initializeFromResolution, initialConfig])
 
+	// Ctrl+C to exit
 	useInput(
 		(input, key) => {
 			if (key.ctrl && input === 'c') {
@@ -108,6 +127,7 @@ function App({ initialConfig }: { initialConfig: RuntimeConfig }) {
 		{ isActive: true },
 	)
 
+	// q to quit from home view
 	useInput(
 		(input) => {
 			if (input === 'q') {
@@ -117,61 +137,68 @@ function App({ initialConfig }: { initialConfig: RuntimeConfig }) {
 		{ isActive: currentView.view === 'home' },
 	)
 
+	// Tab to cycle panels
 	useInput(
 		(_, key) => {
 			if (key.tab) {
-				toggleFocusedPanel()
+				cycleFocusedPanel(key.shift ? 'prev' : 'next')
 			}
 		},
 		{ isActive: true },
 	)
 
+	// 1/2/0 to switch panels directly
 	useInput(
 		(input) => {
-			if (input === '0') {
-				setFocusedPanel('main')
-			} else if (input === '1') {
-				setFocusedPanel('sidebar')
-				setSidebarSection('profiles')
+			if (input === '1') {
+				setFocusedPanel('connection')
 			} else if (input === '2') {
-				setFocusedPanel('sidebar')
-				setSidebarSection('regions')
-			} else if (input === '3') {
-				setFocusedPanel('sidebar')
-				setSidebarSection('tables')
+				setFocusedPanel('browse')
+			} else if (input === '0') {
+				setFocusedPanel('main')
 			}
 		},
 		{ isActive: true },
 	)
 
-	const footerBindings = [
-		{ key: '0-3', label: 'Panels' },
-		{ key: 'j/k', label: 'Navigate' },
-		{ key: 'Enter', label: 'Select' },
-		...(currentView.view === 'table' && focusedPanel === 'main'
-			? [
-					{ key: 's', label: 'Scan' },
-					{ key: 'q', label: 'Query' },
-					{ key: 'f', label: 'Filter' },
-					{ key: 'n', label: 'Next Page' },
-					{ key: 'r', label: 'Refresh' },
-				]
-			: []),
-		...(currentView.view !== 'home' ? [{ key: 'Esc', label: 'Back' }] : []),
-		...(currentView.view === 'home' ? [{ key: 'q', label: 'Quit' }] : []),
-	]
+	// h/l or left/right arrows to switch tabs within current panel
+	useInput(
+		(input, key) => {
+			if (input === 'h' || key.leftArrow) {
+				cycleCurrentPanelTab('prev')
+			} else if (input === 'l' || key.rightArrow) {
+				cycleCurrentPanelTab('next')
+			}
+		},
+		{ isActive: focusedPanel !== 'main' },
+	)
 
-	const contentHeight = terminalHeight - 1
+	// Outer frame (2) + Header (1) + Separator (1) + Footer (1) + Separator (1) = 6 lines
+	const contentHeight = terminalHeight - 6
+	const separatorWidth = Math.max(1, terminalWidth - 2)
 
 	return (
-		<Box flexDirection="column" width="100%" height={terminalHeight}>
+		<Box
+			flexDirection="column"
+			width="100%"
+			height={terminalHeight}
+			borderStyle={borders.style}
+			borderColor={colors.border}
+		>
+			<Header />
+			<Box width="100%">
+				<Text color={colors.border}>{'─'.repeat(separatorWidth)}</Text>
+			</Box>
 			<SplitLayout
 				sidebar={<Sidebar maxHeight={contentHeight} />}
 				main={<MainPanel terminalHeight={contentHeight} />}
 				sidebarWidth={30}
 				height={contentHeight}
 			/>
-			<Footer bindings={footerBindings} />
+			<Box width="100%">
+				<Text color={colors.border}>{'─'.repeat(separatorWidth)}</Text>
+			</Box>
+			<Footer />
 		</Box>
 	)
 }
