@@ -18,6 +18,7 @@
 		"lint": "biome check .",
 		"format": "biome format --write .",
 		"check": "biome check --write .",
+		"verify": "pnpm check && pnpm build && pnpm test",
 		"prepare": "husky"
 	},
 	"keywords": [
@@ -53,7 +54,6 @@
 		"husky": "^9.1.7",
 		"ink-testing-library": "^4.0.0",
 		"jsdom": "^27.3.0",
-		"lefthook": "^2.0.12",
 		"pkg": "^5.8.1",
 		"tsup": "^8.5.1",
 		"tsx": "^4.21.0",
