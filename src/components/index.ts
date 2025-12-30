@@ -1,6 +1,7 @@
 // Layout
 
 // Feedback
+export { ConfirmDialog, type ConfirmDialogProps } from './confirm-dialog.js'
 export { ErrorPanel, type ErrorPanelProps } from './error-panel.js'
 // Forms
 export {

@@ -8,6 +8,7 @@ export type ScanFilterFormProps = {
 	onSubmit: (conditions: FilterCondition[]) => void
 	onCancel: () => void
 	focused?: boolean
+	availableAttributes?: string[]
 }
 
 function createEmptyCondition(): FilterCondition {
@@ -19,6 +20,7 @@ export function ScanFilterForm({
 	onSubmit,
 	onCancel,
 	focused = true,
+	availableAttributes = [],
 }: ScanFilterFormProps) {
 	const [conditions, setConditions] = useState<FilterCondition[]>(
 		initialConditions && initialConditions.length > 0
@@ -56,6 +58,7 @@ export function ScanFilterForm({
 				focused={focused}
 				onExit={handleSubmit}
 				onClear={handleClear}
+				availableAttributes={availableAttributes}
 			/>
 		</Box>
 	)

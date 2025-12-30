@@ -29,8 +29,10 @@ const modeBindings: Record<InputMode, KeyBinding[]> = {
 	],
 	'scan-filter': [
 		{ key: 'Tab', label: 'Next' },
-		{ key: 'Enter', label: 'Add' },
-		{ key: 'd', label: 'Delete' },
+		{ key: 'S-Tab', label: 'Prev' },
+		{ key: '↑↓', label: 'Cycle' },
+		{ key: '= ! < >', label: 'Operator' },
+		{ key: 'Enter', label: 'Apply' },
 		{ key: 'Esc', label: 'Cancel' },
 	],
 	'item-detail': [

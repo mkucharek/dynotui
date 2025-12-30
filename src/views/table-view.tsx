@@ -2,6 +2,7 @@ import { Box, Text, useInput } from 'ink'
 import { useEffect, useMemo, useState } from 'react'
 import {
 	type Column,
+	ConfirmDialog,
 	DataTable,
 	Loading,
 	MainPanel,
@@ -39,6 +40,7 @@ export function TableView({ state, maxHeight = 20 }: TableViewProps) {
 	const [mode, setMode] = useState<Mode>(state.mode)
 	const initialIndex = state.selectedIndex ?? 0
 	const [selectedIndex, setSelectedIndex] = useState(initialIndex)
+	const [confirmClearFilters, setConfirmClearFilters] = useState(false)
 
 	const tableInfo = tableInfoCache.get(tableName)
 	const currentData = mode === 'query' ? query : scan
@@ -87,6 +89,17 @@ export function TableView({ state, maxHeight = 20 }: TableViewProps) {
 		}
 	}, [tableInfo])
 
+	// Extract unique attribute names from items for autocomplete
+	const availableAttributes = useMemo(() => {
+		const keys = new Set<string>()
+		for (const item of items) {
+			for (const key of Object.keys(item)) {
+				keys.add(key)
+			}
+		}
+		return Array.from(keys).sort()
+	}, [items])
+
 	useEffect(() => {
 		fetchTableInfo(tableName)
 	}, [tableName, fetchTableInfo])
@@ -100,8 +113,20 @@ export function TableView({ state, maxHeight = 20 }: TableViewProps) {
 
 	const isMainFocused = focusedPanel === 'main'
 
+	const handleConfirmClear = () => {
+		scan.clearFilters()
+		setConfirmClearFilters(false)
+	}
+
+	const handleCancelClear = () => {
+		setConfirmClearFilters(false)
+	}
+
 	useInput(
 		(input, key) => {
+			// Dialog handles its own input via ConfirmInput
+			if (confirmClearFilters) return
+
 			if (key.escape) {
 				goBack()
 			} else if (input === 's') {
@@ -109,9 +134,12 @@ export function TableView({ state, maxHeight = 20 }: TableViewProps) {
 					setMode('scan')
 					setInputMode('normal')
 					setSelectedIndex(0)
+				} else if (filterConditions.length > 0) {
+					// Show confirmation before clearing filters
+					setConfirmClearFilters(true)
 				} else {
-					// Clear filters and refresh when already in scan mode
-					scan.clearFilters()
+					// No filters, just refresh
+					scan.refresh()
 				}
 			} else if (input === 'f' && mode === 'scan') {
 				setMode('scan-filter-form')
@@ -222,7 +250,7 @@ export function TableView({ state, maxHeight = 20 }: TableViewProps) {
 						<Text color={colors.border}>│</Text> <Text color={colors.brand}>▼</Text> more available
 					</Text>
 				)}
-				{hasActiveFilters && mode === 'scan' && (
+				{hasActiveFilters && mode === 'scan' && !confirmClearFilters && (
 					<Text color={colors.textMuted}>
 						<Text color={colors.border}>│</Text> <Text color={colors.focus}>s</Text> Clear filters
 					</Text>
@@ -261,6 +289,7 @@ export function TableView({ state, maxHeight = 20 }: TableViewProps) {
 					initialConditions={filterConditions}
 					onSubmit={handleScanFilterSubmit}
 					onCancel={handleScanFilterCancel}
+					availableAttributes={availableAttributes}
 				/>
 			</MainPanel>
 		)
@@ -276,7 +305,14 @@ export function TableView({ state, maxHeight = 20 }: TableViewProps) {
 			queryFilter={queryFilterContent}
 			footer={footerContent}
 		>
-			{isLoading && items.length === 0 ? (
+			{confirmClearFilters ? (
+				<ConfirmDialog
+					message="Clear all filters and rescan?"
+					visible={confirmClearFilters}
+					onConfirm={handleConfirmClear}
+					onCancel={handleCancelClear}
+				/>
+			) : isLoading && items.length === 0 ? (
 				<Loading message={mode === 'scan' ? 'Scanning...' : 'Querying...'} />
 			) : !tableInfo && items.length > 0 ? (
 				<Loading message="Loading schema..." />
