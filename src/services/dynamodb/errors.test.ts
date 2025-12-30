@@ -93,6 +93,84 @@ describe('parseDynamoDBError', () => {
 		expect(parseDynamoDBError(undefined).type).toBe('unknown')
 		expect(parseDynamoDBError('string error').type).toBe('unknown')
 	})
+
+	// Credential errors
+	it('parses ExpiredTokenException', () => {
+		const error = { name: 'ExpiredTokenException', message: 'The security token has expired' }
+		const result = parseDynamoDBError(error)
+		expect(result.type).toBe('credentials')
+		expect(result.message).toContain('expired')
+	})
+
+	it('parses ExpiredToken', () => {
+		const error = { name: 'ExpiredToken', message: 'Token expired' }
+		const result = parseDynamoDBError(error)
+		expect(result.type).toBe('credentials')
+	})
+
+	it('parses CredentialsProviderError', () => {
+		const error = {
+			name: 'CredentialsProviderError',
+			message: 'Could not load credentials from any provider',
+		}
+		const result = parseDynamoDBError(error)
+		expect(result.type).toBe('credentials')
+		expect(result.message).toContain('credentials')
+	})
+
+	it('parses InvalidClientTokenId', () => {
+		const error = { name: 'InvalidClientTokenId', message: 'The security token is invalid' }
+		const result = parseDynamoDBError(error)
+		expect(result.type).toBe('credentials')
+		expect(result.message).toContain('Invalid')
+	})
+
+	it('parses UnrecognizedClientException', () => {
+		const error = { name: 'UnrecognizedClientException', message: 'Unrecognized client' }
+		const result = parseDynamoDBError(error)
+		expect(result.type).toBe('credentials')
+	})
+
+	it('parses SignatureDoesNotMatch', () => {
+		const error = { name: 'SignatureDoesNotMatch', message: 'Signature mismatch' }
+		const result = parseDynamoDBError(error)
+		expect(result.type).toBe('credentials')
+		expect(result.message).toContain('signature')
+	})
+
+	// Network errors
+	it('parses TimeoutError', () => {
+		const error = { name: 'TimeoutError', message: 'Connection timed out' }
+		const result = parseDynamoDBError(error)
+		expect(result.type).toBe('network')
+		expect(result.message).toContain('Network')
+	})
+
+	it('parses ENOTFOUND', () => {
+		const error = { name: 'ENOTFOUND', message: 'getaddrinfo ENOTFOUND' }
+		const result = parseDynamoDBError(error)
+		expect(result.type).toBe('network')
+	})
+
+	it('parses InvalidRegion', () => {
+		const error = { name: 'InvalidRegion', message: 'Invalid region specified' }
+		const result = parseDynamoDBError(error)
+		expect(result.type).toBe('network')
+		expect(result.message).toContain('region')
+	})
+
+	// Fallback detection via message content
+	it('detects expired token in unknown error message', () => {
+		const error = { name: 'SomeError', message: 'The token has expired and needs refresh' }
+		const result = parseDynamoDBError(error)
+		expect(result.type).toBe('credentials')
+	})
+
+	it('detects credential keyword in unknown error message', () => {
+		const error = { name: 'SomeError', message: 'Unable to load credential from profile' }
+		const result = parseDynamoDBError(error)
+		expect(result.type).toBe('credentials')
+	})
 })
 
 describe('getErrorDisplayMessage', () => {
@@ -123,5 +201,26 @@ describe('getErrorDisplayMessage', () => {
 		}
 		const result = getErrorDisplayMessage(error)
 		expect(result).toBe('Table or index not found')
+	})
+
+	it('includes details for credentials errors', () => {
+		const error = {
+			type: 'credentials' as const,
+			message: 'AWS token expired. Re-authenticate with your profile.',
+			details: 'The security token has expired',
+		}
+		const result = getErrorDisplayMessage(error)
+		expect(result).toContain('AWS token expired')
+		expect(result).toContain('The security token has expired')
+	})
+
+	it('returns message only for network errors (no details)', () => {
+		const error = {
+			type: 'network' as const,
+			message: 'Network error. Check your connection.',
+			details: 'Connection refused',
+		}
+		const result = getErrorDisplayMessage(error)
+		expect(result).toBe('Network error. Check your connection.')
 	})
 })

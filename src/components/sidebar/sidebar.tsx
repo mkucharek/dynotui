@@ -1,6 +1,7 @@
 import { Box } from 'ink'
 import { useEffect, useMemo, useState } from 'react'
 import { getAwsRegions, listProfiles } from '../../services/aws-config.js'
+import { getErrorDisplayMessage } from '../../services/dynamodb/errors.js'
 import { resetClient } from '../../services/dynamodb/index.js'
 import { useAppStore } from '../../store/app-store.js'
 import { useTables } from '../../store/use-tables.js'
@@ -22,7 +23,7 @@ export function Sidebar({ maxHeight }: SidebarProps) {
 		currentView,
 	} = useAppStore()
 
-	const { tables, isLoading, initialized, fetchTables } = useTables()
+	const { tables, isLoading, error, initialized, fetchTables } = useTables()
 
 	const [profileIndex, setProfileIndex] = useState(0)
 	const [regionIndex, setRegionIndex] = useState(0)
@@ -160,6 +161,8 @@ export function Sidebar({ maxHeight }: SidebarProps) {
 				focused={focusedPanel === 'sidebar' && sidebarSection === 'tables'}
 				maxVisibleItems={tablesHeight}
 				flexGrow={1}
+				error={error ? getErrorDisplayMessage(error) : undefined}
+				isLoading={isLoading}
 			/>
 		</Box>
 	)

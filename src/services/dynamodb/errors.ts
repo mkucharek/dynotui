@@ -4,6 +4,8 @@ export type DynamoDBErrorType =
 	| 'not_found'
 	| 'access_denied'
 	| 'conditional_check_failed'
+	| 'credentials'
+	| 'network'
 	| 'unknown'
 
 export type ParsedDynamoDBError = {
@@ -75,7 +77,81 @@ export function parseDynamoDBError(error: unknown): ParsedDynamoDBError {
 				details: errorMessage,
 			}
 
+		// Credential/authentication errors
+		case 'ExpiredToken':
+		case 'ExpiredTokenException':
+			return {
+				type: 'credentials',
+				message: 'AWS token expired. Re-authenticate with your profile.',
+				details: errorMessage,
+			}
+
+		case 'CredentialsProviderError':
+		case 'CredentialProviderError':
+			return {
+				type: 'credentials',
+				message: 'No AWS credentials found. Check your profile config.',
+				details: errorMessage,
+			}
+
+		case 'InvalidClientTokenId':
+		case 'UnrecognizedClientException':
+			return {
+				type: 'credentials',
+				message: 'Invalid AWS credentials. Check your access keys.',
+				details: errorMessage,
+			}
+
+		case 'InvalidSignatureException':
+		case 'SignatureDoesNotMatch':
+			return {
+				type: 'credentials',
+				message: 'AWS signature mismatch. Check credentials or clock sync.',
+				details: errorMessage,
+			}
+
+		// Network errors
+		case 'TimeoutError':
+		case 'NetworkingError':
+		case 'ENOTFOUND':
+		case 'ECONNREFUSED':
+		case 'ETIMEDOUT':
+			return {
+				type: 'network',
+				message: 'Network error. Check your connection.',
+				details: errorMessage,
+			}
+
+		case 'InvalidRegion':
+		case 'UnknownEndpoint':
+			return {
+				type: 'network',
+				message: 'Invalid AWS region or endpoint.',
+				details: errorMessage,
+			}
+
 		default:
+			// Check for credential-related keywords in unknown errors
+			if (
+				errorMessage.toLowerCase().includes('expired') &&
+				errorMessage.toLowerCase().includes('token')
+			) {
+				return {
+					type: 'credentials',
+					message: 'AWS token expired. Re-authenticate with your profile.',
+					details: errorMessage,
+				}
+			}
+			if (
+				errorMessage.toLowerCase().includes('credential') ||
+				errorMessage.toLowerCase().includes('unable to sign')
+			) {
+				return {
+					type: 'credentials',
+					message: 'AWS credential error. Check your profile config.',
+					details: errorMessage,
+				}
+			}
 			return {
 				type: 'unknown',
 				message: errorMessage || 'Operation failed',
@@ -105,7 +181,8 @@ function extractValidationDetails(message: string): string {
 }
 
 export function getErrorDisplayMessage(error: ParsedDynamoDBError): string {
-	if (error.details && error.type === 'validation') {
+	// Include details for validation, credentials, and network errors
+	if (error.details && (error.type === 'validation' || error.type === 'credentials')) {
 		return `${error.message}: ${error.details}`
 	}
 	return error.message

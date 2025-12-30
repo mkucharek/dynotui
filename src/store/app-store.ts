@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import type { FilterCondition } from '../schemas/query-params.js'
 import { getDefaultRegion } from '../services/aws-config.js'
-import type { ParsedDynamoDBError } from '../services/dynamodb/errors.js'
+import { type ParsedDynamoDBError, parseDynamoDBError } from '../services/dynamodb/errors.js'
 import { getTableInfo, listTables, type TableInfo } from '../services/dynamodb/index.js'
 import { loadUserConfig, saveUserConfig } from '../services/user-config.js'
 import type { ConfigDefaults, ConfigSource, ResolvedValue, RuntimeConfig } from '../types/config.js'
@@ -29,7 +29,7 @@ export type TablesState = {
 	tables: string[]
 	tableInfoCache: Map<string, TableInfo>
 	isLoading: boolean
-	error: string | null
+	error: ParsedDynamoDBError | null
 	hasMore: boolean
 	lastTableName: string | undefined
 	initialized: boolean
@@ -254,7 +254,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 			set({
 				tablesState: {
 					...currentState,
-					error: err instanceof Error ? err.message : 'Failed to fetch tables',
+					error: parseDynamoDBError(err),
 					isLoading: false,
 					initialized: true,
 				},

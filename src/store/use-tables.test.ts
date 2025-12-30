@@ -63,7 +63,9 @@ describe('useTables', () => {
 		})
 
 		await waitFor(() => {
-			expect(result.current.error).toBe('Network error')
+			expect(result.current.error).not.toBeNull()
+			expect(result.current.error?.message).toBe('Network error')
+			expect(result.current.error?.type).toBe('unknown')
 			expect(result.current.isLoading).toBe(false)
 		})
 	})

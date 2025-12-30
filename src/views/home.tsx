@@ -16,6 +16,7 @@ import {
 	getDefaultRegion,
 	listProfiles,
 } from '../services/aws-config.js'
+import { getErrorDisplayMessage } from '../services/dynamodb/errors.js'
 import { resetClient } from '../services/dynamodb/index.js'
 import { useAppStore } from '../store/app-store.js'
 import { useTables } from '../store/use-tables.js'
@@ -255,8 +256,9 @@ export function HomeView() {
 				{isLoading && tables.length === 0 ? (
 					<Loading message="Loading tables..." />
 				) : error ? (
-					<Box>
-						<Text color="red">{error}</Text>
+					<Box flexDirection="column">
+						<Text color="red">{getErrorDisplayMessage(error)}</Text>
+						<Text dimColor>Press 'r' to retry</Text>
 					</Box>
 				) : (
 					<TableList

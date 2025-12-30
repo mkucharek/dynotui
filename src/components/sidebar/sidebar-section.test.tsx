@@ -111,4 +111,31 @@ describe('SidebarSection', () => {
 		// Should show count but limit visible items
 		expect(frame).toContain('(10)')
 	})
+
+	it('shows error message', () => {
+		const { lastFrame } = render(
+			<SidebarSection shortcut="1" title="Items" items={[]} error="Token expired" />,
+		)
+		const frame = lastFrame() ?? ''
+		expect(frame).toContain('Token expired')
+		expect(frame).not.toContain('No items')
+	})
+
+	it('shows loading state', () => {
+		const { lastFrame } = render(
+			<SidebarSection shortcut="1" title="Items" items={[]} isLoading={true} />,
+		)
+		const frame = lastFrame() ?? ''
+		expect(frame).toContain('Loading...')
+		expect(frame).not.toContain('No items')
+	})
+
+	it('shows items over loading when items exist', () => {
+		const { lastFrame } = render(
+			<SidebarSection shortcut="1" title="Items" items={mockItems} isLoading={true} />,
+		)
+		const frame = lastFrame() ?? ''
+		expect(frame).toContain('First Item')
+		expect(frame).not.toContain('Loading...')
+	})
 })

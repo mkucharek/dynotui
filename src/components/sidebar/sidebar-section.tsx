@@ -18,6 +18,8 @@ export type SidebarSectionProps = {
 	focused?: boolean
 	flexGrow?: number
 	maxVisibleItems?: number
+	error?: string
+	isLoading?: boolean
 }
 
 export function SidebarSection({
@@ -31,6 +33,8 @@ export function SidebarSection({
 	focused = false,
 	flexGrow,
 	maxVisibleItems,
+	error,
+	isLoading,
 }: SidebarSectionProps) {
 	const [internalIndex, setInternalIndex] = useState(0)
 	const selectedIndex = controlledIndex ?? internalIndex
@@ -77,7 +81,11 @@ export function SidebarSection({
 			</Box>
 			<Text color={focused ? 'cyan' : 'gray'}>{'─'.repeat(26)}</Text>
 			<Box flexDirection="column" flexGrow={1} overflowY="hidden">
-				{items.length === 0 ? (
+				{error ? (
+					<Text color="red">{error}</Text>
+				) : isLoading && items.length === 0 ? (
+					<Text dimColor>Loading...</Text>
+				) : items.length === 0 ? (
 					<Text dimColor>No items</Text>
 				) : (
 					visibleItems.map((item, i) => {
