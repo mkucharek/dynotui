@@ -6,6 +6,7 @@ export default defineConfig({
 		environment: 'node',
 		passWithNoTests: true,
 		include: ['src/**/*.test.{ts,tsx}'],
+		exclude: ['src/tests/e2e/**'],
 		environmentMatchGlobs: [['src/store/**/*.test.ts', 'jsdom']],
 		coverage: {
 			provider: 'v8',

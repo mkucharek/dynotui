@@ -19,14 +19,25 @@ DynoTUI is a terminal user interface (TUI) client for AWS DynamoDB built with Re
 
 ```bash
 pnpm dev          # Run in dev mode (tsx)
+pnpm dev:local    # Run against local DynamoDB
 pnpm build        # Build with tsup
-pnpm test         # Run tests
+pnpm test         # Run unit tests
 pnpm test:watch   # Run tests in watch mode
+pnpm test:e2e:local # Run e2e tests (local DB)
 pnpm lint         # Check with Biome
 pnpm check        # Lint + format with Biome (auto-fix)
+pnpm verify       # check + build + test
 ```
 
 Run single test file: `pnpm test src/path/to/file.test.ts`
+
+### Local DynamoDB
+
+```bash
+pnpm db:start     # Start DynamoDB Local container
+pnpm db:seed      # Create tables and seed data
+pnpm db:stop      # Stop container
+```
 
 ## Architecture
 
@@ -66,6 +77,55 @@ src/
 - Store tests run in jsdom environment (configured in vitest.config.ts)
 - Component tests use ink-testing-library
 - Coverage thresholds: 60% lines/functions/statements, 55% branches
+
+## Verifying Changes with tmux
+
+Use tmux to run and interact with dynotui to verify your changes work correctly. This is especially useful for UI changes.
+
+### Quick verification
+
+```bash
+# Start app in tmux session
+tmux new-session -d -s dyno -x 120 -y 35 'pnpm dev:local'
+
+# Capture current screen
+tmux capture-pane -t dyno -p
+
+# Send keystrokes (e.g., navigate down, press enter)
+tmux send-keys -t dyno j
+tmux send-keys -t dyno Enter
+
+# Send special keys
+tmux send-keys -t dyno Escape
+tmux send-keys -t dyno Tab
+
+# Kill session when done
+tmux kill-session -t dyno
+```
+
+### Using the TmuxDriver (for scripted verification)
+
+The e2e test helper `src/tests/e2e/helpers/tmux-driver.ts` provides a reusable driver:
+
+```typescript
+import { createDriver } from './src/tests/e2e/helpers/tmux-driver.js'
+
+const driver = createDriver({ sessionName: 'verify' })
+await driver.start('pnpm dev:local')
+await driver.waitFor('Tables')
+driver.sendKeys('2')           // Focus tables panel
+driver.sendSpecialKey('Enter') // Select table
+await driver.waitFor('scan')
+console.log(driver.capture())  // Print screen
+driver.cleanup()
+```
+
+### When to verify with tmux
+
+- After UI component changes
+- After navigation logic changes
+- After keybinding changes
+- Before committing significant UI work
 
 <!-- BACKLOG.MD MCP GUIDELINES START -->
 

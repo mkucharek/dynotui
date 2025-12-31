@@ -5,17 +5,25 @@ import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb'
 export type ClientConfig = {
 	profile?: string
 	region?: string
+	endpoint?: string
 }
 
 let cachedClient: DynamoDBDocumentClient | null = null
 let cachedConfig: ClientConfig = {}
 
 function configChanged(config: ClientConfig): boolean {
-	return config.profile !== cachedConfig.profile || config.region !== cachedConfig.region
+	return (
+		config.profile !== cachedConfig.profile ||
+		config.region !== cachedConfig.region ||
+		config.endpoint !== cachedConfig.endpoint
+	)
 }
 
 export function createClient(config: ClientConfig = {}): DynamoDBDocumentClient {
-	if (cachedClient && !configChanged(config)) {
+	// Check for local DynamoDB endpoint from env var
+	const endpoint = config.endpoint ?? process.env.DYNAMODB_ENDPOINT
+
+	if (cachedClient && !configChanged({ ...config, endpoint })) {
 		return cachedClient
 	}
 
@@ -25,7 +33,16 @@ export function createClient(config: ClientConfig = {}): DynamoDBDocumentClient 
 		clientConfig.region = config.region
 	}
 
-	if (config.profile) {
+	// Local DynamoDB setup
+	if (endpoint) {
+		clientConfig.endpoint = endpoint
+		// Local DynamoDB doesn't need real credentials
+		clientConfig.credentials = {
+			accessKeyId: 'local',
+			secretAccessKey: 'local',
+		}
+		clientConfig.region = config.region ?? 'local'
+	} else if (config.profile) {
 		clientConfig.credentials = fromIni({ profile: config.profile })
 	}
 
@@ -35,7 +52,7 @@ export function createClient(config: ClientConfig = {}): DynamoDBDocumentClient 
 			removeUndefinedValues: true,
 		},
 	})
-	cachedConfig = { ...config }
+	cachedConfig = { ...config, endpoint }
 
 	return cachedClient
 }
