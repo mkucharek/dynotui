@@ -8,6 +8,7 @@ import {
 	MainPanel,
 	QueryFilterSummary,
 	QueryForm,
+	type QueryFormInitialValues,
 	type QueryFormOutput,
 	ScanFilterForm,
 } from '../components/index.js'
@@ -25,7 +26,7 @@ export type TableViewProps = {
 	maxHeight?: number
 }
 
-type Mode = 'scan' | 'query' | 'query-form' | 'scan-filter-form'
+type Mode = 'scan' | 'query' | 'query-form' | 'scan-filter-form' | 'query-filter-form'
 
 export function TableView({ state, maxHeight = 20 }: TableViewProps) {
 	const { tableName } = state
@@ -38,12 +39,18 @@ export function TableView({ state, maxHeight = 20 }: TableViewProps) {
 	const query = useQuery(tableName)
 
 	const [mode, setMode] = useState<Mode>(state.mode)
+	// Track the data mode (scan/query) we were in before opening form
+	const [lastDataMode, setLastDataMode] = useState<'scan' | 'query'>(
+		state.mode === 'query' ? 'query' : 'scan',
+	)
 	const initialIndex = state.selectedIndex ?? 0
 	const [selectedIndex, setSelectedIndex] = useState(initialIndex)
 	const [confirmClearFilters, setConfirmClearFilters] = useState(false)
+	const [confirmSwitchToScan, setConfirmSwitchToScan] = useState(false)
 
 	const tableInfo = tableInfoCache.get(tableName)
-	const currentData = mode === 'query' ? query : scan
+	// Use lastDataMode to get correct data source even when in form modes
+	const currentData = lastDataMode === 'query' ? query : scan
 	const { items, isLoading, error, hasMore, scannedCount } = currentData
 	const filterConditions = scan.filterConditions
 
@@ -122,27 +129,41 @@ export function TableView({ state, maxHeight = 20 }: TableViewProps) {
 		setConfirmClearFilters(false)
 	}
 
+	const handleConfirmSwitchToScan = () => {
+		setMode('scan')
+		setLastDataMode('scan')
+		setSelectedIndex(0)
+		setConfirmSwitchToScan(false)
+	}
+
+	const handleCancelSwitchToScan = () => {
+		setConfirmSwitchToScan(false)
+	}
+
 	useInput(
 		(input, key) => {
 			// Dialog handles its own input via ConfirmInput
-			if (confirmClearFilters) return
+			if (confirmClearFilters || confirmSwitchToScan) return
 
 			if (key.escape) {
 				goBack()
 			} else if (input === 's') {
-				if (mode !== 'scan') {
-					setMode('scan')
-					setInputMode('normal')
-					setSelectedIndex(0)
-				} else if (filterConditions.length > 0) {
+				if (mode === 'query') {
+					// Show confirmation before switching from query to scan
+					setConfirmSwitchToScan(true)
+				} else if (mode === 'scan' && filterConditions.length > 0) {
 					// Show confirmation before clearing filters
 					setConfirmClearFilters(true)
-				} else {
+				} else if (mode === 'scan') {
 					// No filters, just refresh
 					scan.refresh()
 				}
-			} else if (input === 'f' && mode === 'scan') {
-				setMode('scan-filter-form')
+			} else if (input === 'f' && (mode === 'scan' || mode === 'query')) {
+				if (mode === 'scan') {
+					setMode('scan-filter-form')
+				} else {
+					setMode('query-filter-form')
+				}
 				setInputMode('scan-filter')
 			} else if (input === 'q') {
 				setMode('query-form')
@@ -159,6 +180,10 @@ export function TableView({ state, maxHeight = 20 }: TableViewProps) {
 				} else if (mode === 'query' && query.queryParams) {
 					query.executeQuery(query.queryParams, true)
 				}
+			} else if (input === 'c' && mode === 'query' && hasQueryFilters) {
+				// Clear query filters (re-run query without filters)
+				query.clearFilters()
+				setSelectedIndex(0)
 			} else if (key.return && items[selectedIndex]) {
 				const navMode: 'scan' | 'query' = mode === 'query' ? 'query' : 'scan'
 				navigate(
@@ -172,18 +197,20 @@ export function TableView({ state, maxHeight = 20 }: TableViewProps) {
 
 	const handleQuerySubmit = (params: QueryFormOutput) => {
 		setMode('query')
+		setLastDataMode('query')
 		setInputMode('normal')
 		setSelectedIndex(0)
 		query.executeQuery(params, true)
 	}
 
 	const handleQueryCancel = () => {
-		setMode(state.mode === 'query' ? 'query' : 'scan')
+		setMode(lastDataMode)
 		setInputMode('normal')
 	}
 
 	const handleScanFilterSubmit = (conditions: FilterCondition[]) => {
 		setMode('scan')
+		setLastDataMode('scan')
 		setInputMode('normal')
 		setSelectedIndex(0)
 		scan.refresh(conditions)
@@ -194,8 +221,21 @@ export function TableView({ state, maxHeight = 20 }: TableViewProps) {
 		setInputMode('normal')
 	}
 
+	const handleQueryFilterSubmit = (conditions: FilterCondition[]) => {
+		setMode('query')
+		setInputMode('normal')
+		setSelectedIndex(0)
+		query.applyFilters(conditions)
+	}
+
+	const handleQueryFilterCancel = () => {
+		setMode('query')
+		setInputMode('normal')
+	}
+
 	// Determine display mode for metadata
-	const displayMode = mode === 'query-form' || mode === 'query' ? 'query' : 'scan'
+	const displayMode =
+		mode === 'query-form' || mode === 'query' || mode === 'query-filter-form' ? 'query' : 'scan'
 
 	// Metadata bar content - show even without tableInfo, just with less detail
 	const metadataContent = (
@@ -225,19 +265,21 @@ export function TableView({ state, maxHeight = 20 }: TableViewProps) {
 	)
 
 	// Query/Filter summary (only show when not in form mode and have active params)
+	const queryFilterConditions = query.queryParams?.filterConditions ?? []
 	const queryFilterContent =
 		mode === 'scan' || mode === 'query' ? (
 			<QueryFilterSummary
 				mode={displayMode}
 				queryParams={mode === 'query' ? query.queryParams : null}
-				filterConditions={mode === 'scan' ? filterConditions : []}
+				filterConditions={mode === 'scan' ? filterConditions : queryFilterConditions}
 			/>
 		) : null
 
-	// Check if filters are active
-	const hasActiveFilters = filterConditions.length > 0
+	// Check if filters are active (scan filters or query filters)
+	const hasScanFilters = filterConditions.length > 0
+	const hasQueryFilters = queryFilterConditions.length > 0
 
-	// Footer content (scanned count + more indicator + clear hint)
+	// Footer content (scanned count + more indicator + filter hints)
 	const footerContent =
 		(mode === 'scan' || mode === 'query') && items.length > 0 ? (
 			<Box gap={2}>
@@ -250,16 +292,37 @@ export function TableView({ state, maxHeight = 20 }: TableViewProps) {
 						<Text color={colors.border}>│</Text> <Text color={colors.brand}>▼</Text> more available
 					</Text>
 				)}
-				{hasActiveFilters && mode === 'scan' && !confirmClearFilters && (
+				{hasScanFilters && mode === 'scan' && !confirmClearFilters && (
 					<Text color={colors.textMuted}>
 						<Text color={colors.border}>│</Text> <Text color={colors.focus}>s</Text> Clear filters
 					</Text>
+				)}
+				{hasQueryFilters && mode === 'query' && !confirmSwitchToScan && (
+					<>
+						<Text color={colors.textMuted}>
+							<Text color={colors.border}>│</Text> <Text color={colors.focus}>f</Text> Edit filters
+						</Text>
+						<Text color={colors.textMuted}>
+							<Text color={colors.border}>│</Text> <Text color={colors.focus}>c</Text> Clear filters
+						</Text>
+					</>
 				)}
 			</Box>
 		) : null
 
 	// Form views - render directly in MainPanel (no extra Panel wrapper)
 	if (mode === 'query-form' && tableInfo) {
+		// Only populate initial values when editing existing query (came from query mode)
+		// When coming from scan mode, start fresh
+		const queryInitialValues: QueryFormInitialValues | undefined =
+			lastDataMode === 'query' && query.queryParams
+				? {
+						partitionKey: query.queryParams.partitionKey,
+						sortKey: query.queryParams.sortKey,
+						filterConditions: query.queryParams.filterConditions,
+					}
+				: undefined
+
 		return (
 			<MainPanel
 				title={`${tableName} › Query`}
@@ -272,6 +335,7 @@ export function TableView({ state, maxHeight = 20 }: TableViewProps) {
 					sortKeyName={tableInfo.sortKey}
 					onSubmit={handleQuerySubmit}
 					onCancel={handleQueryCancel}
+					initialValues={queryInitialValues}
 				/>
 			</MainPanel>
 		)
@@ -295,6 +359,24 @@ export function TableView({ state, maxHeight = 20 }: TableViewProps) {
 		)
 	}
 
+	if (mode === 'query-filter-form') {
+		return (
+			<MainPanel
+				title={`${tableName} › Query Filter`}
+				panelNumber={0}
+				focused={isMainFocused}
+				metadata={metadataContent}
+			>
+				<ScanFilterForm
+					initialConditions={query.queryParams?.filterConditions ?? []}
+					onSubmit={handleQueryFilterSubmit}
+					onCancel={handleQueryFilterCancel}
+					availableAttributes={availableAttributes}
+				/>
+			</MainPanel>
+		)
+	}
+
 	// Results view
 	return (
 		<MainPanel
@@ -311,6 +393,13 @@ export function TableView({ state, maxHeight = 20 }: TableViewProps) {
 					visible={confirmClearFilters}
 					onConfirm={handleConfirmClear}
 					onCancel={handleCancelClear}
+				/>
+			) : confirmSwitchToScan ? (
+				<ConfirmDialog
+					message="Switch to scan mode? Query results will be lost."
+					visible={confirmSwitchToScan}
+					onConfirm={handleConfirmSwitchToScan}
+					onCancel={handleCancelSwitchToScan}
 				/>
 			) : isLoading && items.length === 0 ? (
 				<Loading message={mode === 'scan' ? 'Scanning...' : 'Querying...'} />

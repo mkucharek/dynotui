@@ -61,14 +61,14 @@ describe('FilterBuilder', () => {
 			expect(onChange).toHaveBeenCalledWith([{ attribute: '', operator: 'eq', value: '' }])
 		})
 
-		it('calls onExit on Escape', () => {
-			const onExit = vi.fn()
+		it('calls onCancel on Escape', () => {
+			const onCancel = vi.fn()
 			const { stdin } = render(
-				<FilterBuilder conditions={[]} onChange={vi.fn()} onExit={onExit} focused />,
+				<FilterBuilder conditions={[]} onChange={vi.fn()} onCancel={onCancel} focused />,
 			)
 
 			stdin.write('\x1B') // Escape
-			expect(onExit).toHaveBeenCalled()
+			expect(onCancel).toHaveBeenCalled()
 		})
 	})
 

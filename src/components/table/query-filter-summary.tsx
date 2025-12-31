@@ -1,6 +1,6 @@
 import { Box, Text } from 'ink'
 import type { FilterCondition, QueryParams } from '../../schemas/query-params.js'
-import { colors } from '../../theme.js'
+import { colors, symbols } from '../../theme.js'
 
 export type QueryFilterSummaryProps = {
 	mode: 'scan' | 'query'
@@ -44,78 +44,67 @@ export function QueryFilterSummary({
 		return null
 	}
 
+	// Stacked format with spacing from metadata:
+	// ◆ Query: pk = "val", sk > 10
+	// ▸ Filter: attr = "val", attr2 > 10
 	return (
-		<Box
-			flexDirection="column"
-			borderStyle="round"
-			borderColor={colors.border}
-			paddingX={1}
-			marginY={0}
-		>
+		<Box flexDirection="column" marginTop={1}>
 			{/* Query section */}
 			{hasQuery && queryParams && (
-				<Box flexDirection="column">
+				<Box gap={1} flexWrap="wrap">
 					<Text color={colors.focus} bold>
-						Query
+						{symbols.brandMark} Query:
 					</Text>
-					<Box gap={2} flexWrap="wrap">
-						{/* Partition key */}
+					<Text>
+						<Text color={colors.dataKey}>{queryParams.partitionKey.name}</Text>
+						<Text color={colors.textSecondary}> = </Text>
+						<Text color={colors.dataValue}>{formatValue(queryParams.partitionKey.value)}</Text>
+					</Text>
+					{queryParams.sortKey && (
 						<Text>
-							<Text color={colors.dataKey}>{queryParams.partitionKey.name}</Text>
-							<Text color={colors.textSecondary}> = </Text>
-							<Text color={colors.dataValue}>{formatValue(queryParams.partitionKey.value)}</Text>
-						</Text>
-
-						{/* Sort key */}
-						{queryParams.sortKey && (
-							<Text>
-								<Text color={colors.dataKey}>{queryParams.sortKey.name}</Text>
-								<Text color={colors.textSecondary}>
-									{' '}
-									{formatOperator(queryParams.sortKey.operator)}{' '}
-								</Text>
-								<Text color={colors.dataValue}>{formatValue(queryParams.sortKey.value)}</Text>
-								{queryParams.sortKey.operator === 'between' &&
-									queryParams.sortKey.valueTo !== undefined && (
-										<>
-											<Text color={colors.textSecondary}> and </Text>
-											<Text color={colors.dataValue}>
-												{formatValue(queryParams.sortKey.valueTo)}
-											</Text>
-										</>
-									)}
+							<Text color={colors.dataKey}>{queryParams.sortKey.name}</Text>
+							<Text color={colors.textSecondary}>
+								{' '}
+								{formatOperator(queryParams.sortKey.operator)}{' '}
 							</Text>
-						)}
-					</Box>
+							<Text color={colors.dataValue}>{formatValue(queryParams.sortKey.value)}</Text>
+							{queryParams.sortKey.operator === 'between' &&
+								queryParams.sortKey.valueTo !== undefined && (
+									<>
+										<Text color={colors.textSecondary}> and </Text>
+										<Text color={colors.dataValue}>{formatValue(queryParams.sortKey.valueTo)}</Text>
+									</>
+								)}
+						</Text>
+					)}
 				</Box>
 			)}
 
 			{/* Filter section */}
 			{hasFilters && (
-				<Box flexDirection="column">
+				<Box gap={1} flexWrap="wrap">
 					<Text color={colors.brand} bold>
-						{mode === 'scan' ? 'Scan Filter' : 'Filter'}
+						{symbols.selected} Filter:
 					</Text>
-					<Box gap={2} flexWrap="wrap">
-						{filterConditions.map((condition, i) => (
-							<Text key={`${condition.attribute}-${i}`}>
-								<Text color={colors.dataKey}>{condition.attribute}</Text>
-								<Text color={colors.textSecondary}> {formatOperator(condition.operator)} </Text>
-								{condition.operator !== 'attribute_exists' &&
-									condition.operator !== 'attribute_not_exists' && (
-										<>
-											<Text color={colors.dataValue}>{formatValue(condition.value)}</Text>
-											{condition.operator === 'between' && condition.value2 !== undefined && (
-												<>
-													<Text color={colors.textSecondary}> and </Text>
-													<Text color={colors.dataValue}>{formatValue(condition.value2)}</Text>
-												</>
-											)}
-										</>
-									)}
-							</Text>
-						))}
-					</Box>
+					{filterConditions.map((condition, i) => (
+						<Text key={`${condition.attribute}-${i}`}>
+							<Text color={colors.dataKey}>{condition.attribute}</Text>
+							<Text color={colors.textSecondary}> {formatOperator(condition.operator)} </Text>
+							{condition.operator !== 'attribute_exists' &&
+								condition.operator !== 'attribute_not_exists' && (
+									<>
+										<Text color={colors.dataValue}>{formatValue(condition.value)}</Text>
+										{condition.operator === 'between' && condition.value2 !== undefined && (
+											<>
+												<Text color={colors.textSecondary}> and </Text>
+												<Text color={colors.dataValue}>{formatValue(condition.value2)}</Text>
+											</>
+										)}
+									</>
+								)}
+							{i < filterConditions.length - 1 && <Text color={colors.textMuted}>,</Text>}
+						</Text>
+					))}
 				</Box>
 			)}
 		</Box>

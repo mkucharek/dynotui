@@ -8,7 +8,8 @@ export type FilterBuilderProps = {
 	conditions: FilterCondition[]
 	onChange: (conditions: FilterCondition[]) => void
 	focused?: boolean
-	onExit?: () => void
+	onExit?: () => void // Called on Enter (submit)
+	onCancel?: () => void // Called on Escape (cancel)
 	onClear?: () => void // Called when all filters are cleared
 	availableAttributes?: string[] // For autocomplete
 }
@@ -111,6 +112,7 @@ export function FilterBuilder({
 	onChange,
 	focused = true,
 	onExit,
+	onCancel,
 	onClear,
 	availableAttributes = [],
 }: FilterBuilderProps) {
@@ -238,7 +240,7 @@ export function FilterBuilder({
 			if (!focused) return
 
 			if (key.escape) {
-				onExit?.()
+				onCancel?.()
 				return
 			}
 

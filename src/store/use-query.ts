@@ -116,11 +116,35 @@ export function useQuery(tableName: string) {
 		setQueryState(tableName, createInitialQueryState())
 	}, [tableName, setQueryState])
 
+	const applyFilters = useCallback(
+		async (filterConditions: QueryParams['filterConditions']) => {
+			const currentState = getQueryState(tableName)
+			if (!currentState.queryParams) return null
+
+			const params: Omit<QueryParams, 'tableName'> = {
+				partitionKey: currentState.queryParams.partitionKey,
+				sortKey: currentState.queryParams.sortKey,
+				indexName: currentState.queryParams.indexName,
+				filterConditions,
+				limit: currentState.queryParams.limit,
+				scanIndexForward: currentState.queryParams.scanIndexForward,
+			}
+			return executeQuery(params, true)
+		},
+		[tableName, executeQuery, getQueryState],
+	)
+
+	const clearFilters = useCallback(async () => {
+		return applyFilters(undefined)
+	}, [applyFilters])
+
 	return {
 		...state,
 		executeQuery,
 		fetchNextPage,
 		refresh,
 		reset,
+		applyFilters,
+		clearFilters,
 	}
 }

@@ -1,4 +1,4 @@
-import { Box, useInput } from 'ink'
+import { Box } from 'ink'
 import { useState } from 'react'
 import type { FilterCondition } from '../../schemas/query-params.js'
 import { FilterBuilder } from './filter-builder.js'
@@ -39,17 +39,6 @@ export function ScanFilterForm({
 		onSubmit([])
 	}
 
-	useInput(
-		(_input, key) => {
-			if (!focused) return
-
-			if (key.escape) {
-				onCancel()
-			}
-		},
-		{ isActive: focused },
-	)
-
 	return (
 		<Box flexDirection="column" gap={1}>
 			<FilterBuilder
@@ -57,6 +46,7 @@ export function ScanFilterForm({
 				onChange={setConditions}
 				focused={focused}
 				onExit={handleSubmit}
+				onCancel={onCancel}
 				onClear={handleClear}
 				availableAttributes={availableAttributes}
 			/>

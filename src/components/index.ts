@@ -9,7 +9,12 @@ export {
 	type InlineSelectorProps,
 	type SelectorItem,
 } from './forms/inline-selector.js'
-export { QueryForm, type QueryFormOutput, type QueryFormProps } from './forms/query-form.js'
+export {
+	QueryForm,
+	type QueryFormInitialValues,
+	type QueryFormOutput,
+	type QueryFormProps,
+} from './forms/query-form.js'
 export { ScanFilterForm, type ScanFilterFormProps } from './forms/scan-filter-form.js'
 export { ItemDetail, type ItemDetailProps } from './item-detail.js'
 export { Footer, type FooterProps, type KeyBinding } from './layout/footer.js'

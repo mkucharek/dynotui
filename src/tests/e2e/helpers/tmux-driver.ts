@@ -83,7 +83,7 @@ export class TmuxDriver {
 	 * Send special keys (Enter, Escape, Tab, etc.)
 	 */
 	sendSpecialKey(
-		key: 'Enter' | 'Escape' | 'Tab' | 'Up' | 'Down' | 'Left' | 'Right' | 'BSpace',
+		key: 'Enter' | 'Escape' | 'Tab' | 'BTab' | 'Up' | 'Down' | 'Left' | 'Right' | 'BSpace',
 	): void {
 		if (!this.started) throw new Error('Driver not started')
 		execFileSync('tmux', ['send-keys', '-t', this.sessionName, key], {
@@ -179,24 +179,45 @@ export class TmuxDriver {
 	 * Navigate to table view and wait for data to load
 	 */
 	async navigateToTable(tableName: string): Promise<void> {
-		// Focus browse panel
+		// Focus tables panel
 		this.sendKeys('2')
 		await this.tick(500)
 
 		// Verify table is visible in list
 		await this.waitFor(tableName, { timeout: 5000 })
 
-		// Select table
-		this.sendSpecialKey('Enter')
+		// Go to top of list first (press 'g' for vim-style go to top, or k enough times)
+		this.sendKeys('g')
+		await this.tick(200)
 
-		// Wait for table view to load
-		await this.waitFor('› scan', { timeout: 10000 })
+		// Now navigate down to find the target table
+		// Tables are alphabetically sorted, so navigate down until we see
+		// the table name in the header after pressing Enter
+		for (let attempts = 0; attempts < 10; attempts++) {
+			// Try entering this table
+			this.sendSpecialKey('Enter')
+			await this.tick(500)
 
-		// Wait for schema to load (PK: appears in header)
-		await this.waitFor('PK:', { timeout: 30000 })
+			const screen = this.capture()
+			// Check if we're in the right table view
+			if (screen.includes(`› ${tableName} ›`)) {
+				// Found it! Wait for full load
+				await this.waitFor('› scan', { timeout: 10000 })
+				await this.waitFor('PK:', { timeout: 30000 })
+				await this.waitForGone('Loading', { timeout: 30000 })
+				return
+			}
 
-		// Wait for scan to complete (Loading disappears)
-		await this.waitForGone('Loading', { timeout: 30000 })
+			// Wrong table, go back and try next
+			this.sendSpecialKey('Escape')
+			await this.tick(300)
+			this.sendKeys('2') // Refocus tables panel
+			await this.tick(300)
+			this.sendKeys('j') // Next table
+			await this.tick(200)
+		}
+
+		throw new Error(`Could not navigate to table: ${tableName}`)
 	}
 
 	private killSession(): void {
