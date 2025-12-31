@@ -19,6 +19,7 @@
 		"test:e2e": "vitest run --config vitest.e2e.config.ts",
 		"test:e2e:watch": "vitest --config vitest.e2e.config.ts",
 		"test:e2e:local": "DYNAMODB_ENDPOINT=http://localhost:8000 vitest run --config vitest.e2e.config.ts",
+		"test:e2e:ci": "./scripts/run-e2e.sh",
 		"db:start": "podman compose up -d",
 		"db:stop": "podman compose down",
 		"db:seed": "DYNAMODB_ENDPOINT=http://localhost:8000 tsx src/tests/e2e/seed-local-db.ts",
