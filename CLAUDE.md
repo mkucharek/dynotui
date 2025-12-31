@@ -10,9 +10,15 @@ DynoTUI is a terminal user interface (TUI) client for AWS DynamoDB built with Re
 
 1. Do not work on the `master` branch directly. Create a new feature branch from `master` for each task/feature/bugfix.
 2. When planning work, make sure to create backlog tasks for each step and store the plan in backlog docs. Check existing issues and backlog to avoid duplicates.
-3. Write code with clear, concise commits. Each commit should represent a single logical change.
-4. Write tests for new features and bug fixes. Ensure existing tests pass before submitting a PR.
-5. Before creating a PR, run `pnpm check` to lint and format code. Ensure code coverage thresholds are met. Make sure to update docs / tasks with any relevant information.
+3. Write code with clear, concise commits. Each commit should represent a single logical change. Do not use --no-verify or skip hooks.
+4. Write unit and e2e tests for new features and bug fixes.
+5. Before creating a PR:
+
+- review code for clarity, style, and correctness. Use "code-review" skill if available. Address any must-haves before proceeding and add the rest to the backlog.
+- run `pnpm verify` to lint and format code and to ensure the tests are passing and code coverage thresholds are met.
+- run `pnpm:e2e:ci` to run E2E test suite.
+- Make sure to update docs / tasks with any relevant information.
+
 6. Create a PR against `master` with a clear description of changes.
 
 ## Commands
@@ -24,6 +30,7 @@ pnpm build        # Build with tsup
 pnpm test         # Run unit tests
 pnpm test:watch   # Run tests in watch mode
 pnpm test:e2e:local # Run e2e tests (local DB)
+pnpm test:e2e:ci  # Run e2e tests (CI)
 pnpm lint         # Check with Biome
 pnpm check        # Lint + format with Biome (auto-fix)
 pnpm verify       # check + build + test
@@ -108,16 +115,16 @@ tmux kill-session -t dyno
 The e2e test helper `src/tests/e2e/helpers/tmux-driver.ts` provides a reusable driver:
 
 ```typescript
-import { createDriver } from './src/tests/e2e/helpers/tmux-driver.js'
+import { createDriver } from "./src/tests/e2e/helpers/tmux-driver.js";
 
-const driver = createDriver({ sessionName: 'verify' })
-await driver.start('pnpm dev:local')
-await driver.waitFor('Tables')
-driver.sendKeys('2')           // Focus tables panel
-driver.sendSpecialKey('Enter') // Select table
-await driver.waitFor('scan')
-console.log(driver.capture())  // Print screen
-driver.cleanup()
+const driver = createDriver({ sessionName: "verify" });
+await driver.start("pnpm dev:local");
+await driver.waitFor("Tables");
+driver.sendKeys("2"); // Focus tables panel
+driver.sendSpecialKey("Enter"); // Select table
+await driver.waitFor("scan");
+console.log(driver.capture()); // Print screen
+driver.cleanup();
 ```
 
 ### When to verify with tmux
