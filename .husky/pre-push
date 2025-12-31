@@ -1,1 +1,1 @@
-pnpm verify
+pnpm test:e2e:local
