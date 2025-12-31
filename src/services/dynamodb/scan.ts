@@ -3,6 +3,7 @@ import { type ClientConfig, createClient } from './client.js'
 
 export type ScanParams = {
 	tableName: string
+	indexName?: string
 	limit?: number
 	exclusiveStartKey?: Record<string, unknown>
 	filterExpression?: string
@@ -22,6 +23,7 @@ export async function scan(params: ScanParams, config: ClientConfig = {}): Promi
 
 	const command = new ScanCommand({
 		TableName: params.tableName,
+		IndexName: params.indexName,
 		Limit: params.limit,
 		ExclusiveStartKey: params.exclusiveStartKey,
 		FilterExpression: params.filterExpression,

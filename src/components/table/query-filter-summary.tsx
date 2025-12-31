@@ -55,6 +55,13 @@ export function QueryFilterSummary({
 					<Text color={colors.focus} bold>
 						{symbols.brandMark} Query:
 					</Text>
+					{queryParams.indexName && (
+						<Text>
+							<Text color={colors.textMuted}>[</Text>
+							<Text color={colors.brand}>{queryParams.indexName}</Text>
+							<Text color={colors.textMuted}>]</Text>
+						</Text>
+					)}
 					<Text>
 						<Text color={colors.dataKey}>{queryParams.partitionKey.name}</Text>
 						<Text color={colors.textSecondary}> = </Text>

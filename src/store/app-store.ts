@@ -24,6 +24,7 @@ export type ScanState = {
 	lastEvaluatedKey: Record<string, unknown> | undefined
 	scannedCount: number
 	filterConditions: FilterCondition[]
+	indexName?: string
 	initialized: boolean
 }
 
@@ -129,6 +130,7 @@ export const createInitialScanState = (): ScanState => ({
 	lastEvaluatedKey: undefined,
 	scannedCount: 0,
 	filterConditions: [],
+	indexName: undefined,
 	initialized: false,
 })
 

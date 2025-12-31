@@ -184,6 +184,10 @@ export function TableView({ state, maxHeight = 20 }: TableViewProps) {
 				// Clear query filters (re-run query without filters)
 				query.clearFilters()
 				setSelectedIndex(0)
+			} else if (input === 'c' && mode === 'scan' && hasScanFilters) {
+				// Clear scan filters
+				scan.clearFilters()
+				setSelectedIndex(0)
 			} else if (key.return && items[selectedIndex]) {
 				const navMode: 'scan' | 'query' = mode === 'query' ? 'query' : 'scan'
 				navigate(
@@ -255,6 +259,14 @@ export function TableView({ state, maxHeight = 20 }: TableViewProps) {
 					<Text color={colors.textSecondary}>
 						{tableInfo.itemCount?.toLocaleString() ?? '?'} items
 					</Text>
+					{tableInfo.indexes.length > 0 && (
+						<>
+							<Text color={colors.border}>│</Text>
+							<Text color={colors.textMuted}>
+								{tableInfo.indexes.length} index{tableInfo.indexes.length > 1 ? 'es' : ''}
+							</Text>
+						</>
+					)}
 				</>
 			) : (
 				<Text color={colors.textMuted}>Loading schema...</Text>
@@ -294,7 +306,7 @@ export function TableView({ state, maxHeight = 20 }: TableViewProps) {
 				)}
 				{hasScanFilters && mode === 'scan' && !confirmClearFilters && (
 					<Text color={colors.textMuted}>
-						<Text color={colors.border}>│</Text> <Text color={colors.focus}>s</Text> Clear filters
+						<Text color={colors.border}>│</Text> <Text color={colors.focus}>c</Text> Clear filters
 					</Text>
 				)}
 				{hasQueryFilters && mode === 'query' && !confirmSwitchToScan && (
@@ -317,6 +329,7 @@ export function TableView({ state, maxHeight = 20 }: TableViewProps) {
 		const queryInitialValues: QueryFormInitialValues | undefined =
 			lastDataMode === 'query' && query.queryParams
 				? {
+						indexName: query.queryParams.indexName,
 						partitionKey: query.queryParams.partitionKey,
 						sortKey: query.queryParams.sortKey,
 						filterConditions: query.queryParams.filterConditions,
@@ -333,6 +346,7 @@ export function TableView({ state, maxHeight = 20 }: TableViewProps) {
 				<QueryForm
 					partitionKeyName={tableInfo.partitionKey}
 					sortKeyName={tableInfo.sortKey}
+					indexes={tableInfo.indexes}
 					onSubmit={handleQuerySubmit}
 					onCancel={handleQueryCancel}
 					initialValues={queryInitialValues}

@@ -108,6 +108,7 @@ describe('getTableInfo', () => {
 			sizeBytes: 50000,
 			partitionKey: 'pk',
 			sortKey: 'sk',
+			indexes: [],
 		})
 	})
 
@@ -127,5 +128,157 @@ describe('getTableInfo', () => {
 
 		expect(result.partitionKey).toBe('id')
 		expect(result.sortKey).toBeUndefined()
+		expect(result.indexes).toEqual([])
+	})
+
+	it('extracts GSI metadata correctly', async () => {
+		const mockSend = vi.fn().mockResolvedValue({
+			Table: {
+				TableName: 'orders',
+				TableStatus: 'ACTIVE',
+				ItemCount: 100,
+				TableSizeBytes: 5000,
+				KeySchema: [
+					{ AttributeName: 'order_id', KeyType: 'HASH' },
+					{ AttributeName: 'item_id', KeyType: 'RANGE' },
+				],
+				GlobalSecondaryIndexes: [
+					{
+						IndexName: 'customer-orders-index',
+						KeySchema: [
+							{ AttributeName: 'customer_id', KeyType: 'HASH' },
+							{ AttributeName: 'order_date', KeyType: 'RANGE' },
+						],
+						Projection: { ProjectionType: 'ALL' },
+						IndexStatus: 'ACTIVE',
+						ItemCount: 50,
+					},
+				],
+			},
+		})
+		vi.mocked(createClient).mockReturnValue({ send: mockSend } as never)
+
+		const result = await getTableInfo('orders')
+
+		expect(result.indexes).toHaveLength(1)
+		expect(result.indexes[0]).toEqual({
+			name: 'customer-orders-index',
+			type: 'GSI',
+			partitionKey: 'customer_id',
+			sortKey: 'order_date',
+			projection: 'ALL',
+			status: 'ACTIVE',
+		})
+	})
+
+	it('extracts LSI metadata correctly', async () => {
+		const mockSend = vi.fn().mockResolvedValue({
+			Table: {
+				TableName: 'products',
+				TableStatus: 'ACTIVE',
+				ItemCount: 100,
+				TableSizeBytes: 5000,
+				KeySchema: [
+					{ AttributeName: 'product_id', KeyType: 'HASH' },
+					{ AttributeName: 'variant_id', KeyType: 'RANGE' },
+				],
+				LocalSecondaryIndexes: [
+					{
+						IndexName: 'price-index',
+						KeySchema: [
+							{ AttributeName: 'product_id', KeyType: 'HASH' },
+							{ AttributeName: 'price', KeyType: 'RANGE' },
+						],
+						Projection: { ProjectionType: 'ALL' },
+						ItemCount: 100,
+					},
+				],
+			},
+		})
+		vi.mocked(createClient).mockReturnValue({ send: mockSend } as never)
+
+		const result = await getTableInfo('products')
+
+		expect(result.indexes).toHaveLength(1)
+		expect(result.indexes[0]).toEqual({
+			name: 'price-index',
+			type: 'LSI',
+			partitionKey: 'product_id',
+			sortKey: 'price',
+			projection: 'ALL',
+			status: undefined,
+		})
+	})
+
+	it('excludes non-ACTIVE GSIs', async () => {
+		const mockSend = vi.fn().mockResolvedValue({
+			Table: {
+				TableName: 'test',
+				TableStatus: 'ACTIVE',
+				ItemCount: 100,
+				TableSizeBytes: 5000,
+				KeySchema: [{ AttributeName: 'id', KeyType: 'HASH' }],
+				GlobalSecondaryIndexes: [
+					{
+						IndexName: 'active-index',
+						KeySchema: [{ AttributeName: 'attr1', KeyType: 'HASH' }],
+						Projection: { ProjectionType: 'ALL' },
+						IndexStatus: 'ACTIVE',
+					},
+					{
+						IndexName: 'creating-index',
+						KeySchema: [{ AttributeName: 'attr2', KeyType: 'HASH' }],
+						Projection: { ProjectionType: 'KEYS_ONLY' },
+						IndexStatus: 'CREATING',
+					},
+				],
+			},
+		})
+		vi.mocked(createClient).mockReturnValue({ send: mockSend } as never)
+
+		const result = await getTableInfo('test')
+
+		expect(result.indexes).toHaveLength(1)
+		expect(result.indexes[0]?.name).toBe('active-index')
+	})
+
+	it('combines GSI and LSI in correct order', async () => {
+		const mockSend = vi.fn().mockResolvedValue({
+			Table: {
+				TableName: 'combined',
+				TableStatus: 'ACTIVE',
+				ItemCount: 100,
+				TableSizeBytes: 5000,
+				KeySchema: [
+					{ AttributeName: 'pk', KeyType: 'HASH' },
+					{ AttributeName: 'sk', KeyType: 'RANGE' },
+				],
+				GlobalSecondaryIndexes: [
+					{
+						IndexName: 'gsi-1',
+						KeySchema: [{ AttributeName: 'attr1', KeyType: 'HASH' }],
+						Projection: { ProjectionType: 'ALL' },
+						IndexStatus: 'ACTIVE',
+					},
+				],
+				LocalSecondaryIndexes: [
+					{
+						IndexName: 'lsi-1',
+						KeySchema: [
+							{ AttributeName: 'pk', KeyType: 'HASH' },
+							{ AttributeName: 'attr2', KeyType: 'RANGE' },
+						],
+						Projection: { ProjectionType: 'KEYS_ONLY' },
+					},
+				],
+			},
+		})
+		vi.mocked(createClient).mockReturnValue({ send: mockSend } as never)
+
+		const result = await getTableInfo('combined')
+
+		expect(result.indexes).toHaveLength(2)
+		expect(result.indexes[0]?.type).toBe('GSI')
+		expect(result.indexes[1]?.type).toBe('LSI')
 	})
 })

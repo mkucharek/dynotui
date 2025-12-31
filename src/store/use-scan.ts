@@ -23,12 +23,15 @@ export function useScan(tableName: string) {
 	)
 
 	const executeScan = useCallback(
-		async (options: { filterConditions?: FilterCondition[]; reset?: boolean } = {}) => {
-			const { filterConditions, reset = false } = options
+		async (
+			options: { filterConditions?: FilterCondition[]; indexName?: string; reset?: boolean } = {},
+		) => {
+			const { filterConditions, indexName, reset = false } = options
 
 			// Read current state directly - no stale closure with getScanState
 			const currentState = getScanState(tableName)
 			const filtersToUse = filterConditions ?? currentState.filterConditions
+			const indexToUse = indexName !== undefined ? indexName : currentState.indexName
 			const startKey = reset ? undefined : currentState.lastEvaluatedKey
 
 			setScanState(tableName, {
@@ -42,6 +45,7 @@ export function useScan(tableName: string) {
 							hasMore: true,
 							scannedCount: 0,
 							filterConditions: filtersToUse,
+							indexName: indexToUse,
 						}
 					: {}),
 			})
@@ -52,6 +56,7 @@ export function useScan(tableName: string) {
 				const result: ScanResult = await scan(
 					{
 						tableName,
+						indexName: indexToUse,
 						limit: pageSize,
 						filterExpression: filterParams?.filterExpression,
 						expressionAttributeNames: filterParams?.expressionAttributeNames,
@@ -90,13 +95,14 @@ export function useScan(tableName: string) {
 	const fetchNextPage = useCallback(() => executeScan({ reset: false }), [executeScan])
 
 	const refresh = useCallback(
-		(filterConditions?: FilterCondition[]) => executeScan({ filterConditions, reset: true }),
+		(filterConditions?: FilterCondition[], indexName?: string) =>
+			executeScan({ filterConditions, indexName, reset: true }),
 		[executeScan],
 	)
 
 	const clearFilters = useCallback(() => {
-		updateState({ filterConditions: [] })
-		return executeScan({ filterConditions: [], reset: true })
+		updateState({ filterConditions: [], indexName: undefined })
+		return executeScan({ filterConditions: [], indexName: undefined, reset: true })
 	}, [executeScan, updateState])
 
 	const reset = useCallback(() => {
@@ -108,6 +114,7 @@ export function useScan(tableName: string) {
 			lastEvaluatedKey: undefined,
 			scannedCount: 0,
 			filterConditions: [],
+			indexName: undefined,
 			initialized: false,
 		})
 	}, [tableName, setScanState])

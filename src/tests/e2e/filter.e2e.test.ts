@@ -102,3 +102,50 @@ describe('Filter Form E2E', () => {
 		expect(screen).toContain('app')
 	})
 })
+
+describe('Clear Scan Filters E2E', () => {
+	let driver: TmuxDriver
+
+	beforeEach(async () => {
+		driver = createDriver({ sessionName: 'dyno_clear_filter_test' })
+		await driver.start()
+		await driver.navigateToTable(TEST_TABLE)
+	})
+
+	afterEach(() => {
+		driver.cleanup()
+	})
+
+	it('can clear scan filters with c key', async () => {
+		// Open filter form
+		driver.sendKeys('f')
+		await driver.waitFor('› Filter', { timeout: 3000 })
+
+		// Apply a filter: status = active
+		driver.sendKeys('status')
+		await driver.tick()
+		driver.sendSpecialKey('Tab') // Move to operator
+		await driver.tick()
+		driver.sendSpecialKey('Tab') // Move to value
+		await driver.tick()
+		driver.sendKeys('active')
+		await driver.tick()
+		driver.sendSpecialKey('Enter') // Apply filter
+		await driver.waitFor('Filter:', { timeout: 3000 })
+
+		// Verify filter is shown in summary
+		driver.assertVisible('status')
+		driver.assertVisible('active')
+		// Footer should show 'c Clear filters'
+		driver.assertVisible('c Clear')
+
+		// Press 'c' to clear filters
+		driver.sendKeys('c')
+		await driver.waitFor('scan', { timeout: 3000 })
+
+		// Filter summary should be gone
+		driver.assertNotVisible('Filter:')
+		// 'c Clear filters' hint should be gone
+		driver.assertNotVisible('c Clear')
+	})
+})

@@ -1,12 +1,15 @@
 import { Box, Text, useInput } from 'ink'
 import TextInput from 'ink-text-input'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { FilterCondition, SortKeyOperator } from '../../schemas/query-params.js'
+import type { IndexInfo } from '../../services/dynamodb/tables.js'
 import { colors, symbols } from '../../theme.js'
 import { FilterBuilder } from './filter-builder.js'
+import { buildIndexItems, IndexSelector, type IndexSelectorItem } from './index-selector.js'
 
 // Form output type (without tableName, which is added by the caller)
 export type QueryFormOutput = {
+	indexName?: string
 	partitionKey: { name: string; value: string | number }
 	sortKey?: {
 		name: string
@@ -19,6 +22,7 @@ export type QueryFormOutput = {
 
 // Initial values for populating form from previous query
 export type QueryFormInitialValues = {
+	indexName?: string
 	partitionKey?: { name: string; value: string | number }
 	sortKey?: {
 		name: string
@@ -32,13 +36,14 @@ export type QueryFormInitialValues = {
 export type QueryFormProps = {
 	partitionKeyName: string
 	sortKeyName?: string
+	indexes?: IndexInfo[]
 	onSubmit: (params: QueryFormOutput) => void
 	onCancel: () => void
 	focused?: boolean
 	initialValues?: QueryFormInitialValues
 }
 
-type FormField = 'pk' | 'skOp' | 'sk' | 'sk2'
+type FormField = 'index' | 'pk' | 'skOp' | 'sk' | 'sk2'
 type FormSection = 'keys' | 'filters'
 
 const SK_OPERATORS: { value: SortKeyOperator; label: string; shortcut: string }[] = [
@@ -71,6 +76,7 @@ function parseValue(value: string): string | number {
 export function QueryForm({
 	partitionKeyName,
 	sortKeyName,
+	indexes,
 	onSubmit,
 	onCancel,
 	focused = true,
@@ -83,20 +89,57 @@ export function QueryForm({
 	const initSk = initialValues?.sortKey?.value?.toString() ?? ''
 	const initSk2 = initialValues?.sortKey?.valueTo?.toString() ?? ''
 	const initFilters = initialValues?.filterConditions ?? []
+	const initIndexName = initialValues?.indexName ?? ''
 
+	const [selectedIndex, setSelectedIndex] = useState(initIndexName)
 	const [pkValue, setPkValue] = useState(initPk)
 	const [skOperator, setSkOperator] = useState<SortKeyOperator>(initSkOp)
 	const [skValue, setSkValue] = useState(initSk)
 	const [skValue2, setSkValue2] = useState(initSk2)
-	const [activeField, setActiveField] = useState<FormField>('pk')
+	const [activeField, setActiveField] = useState<FormField>(indexes?.length ? 'index' : 'pk')
 	const [opIndex, setOpIndex] = useState(initSkOpIndex >= 0 ? initSkOpIndex : 0)
 	const [activeSection, setActiveSection] = useState<FormSection>('keys')
 	const [filterConditions, setFilterConditions] = useState<FilterCondition[]>(initFilters)
 
-	const fields: FormField[] = sortKeyName ? ['pk', 'skOp', 'sk'] : ['pk']
-	if (sortKeyName && skOperator === 'between') {
-		fields.push('sk2')
+	// Build index selector items
+	const indexItems = useMemo(
+		() => (indexes?.length ? buildIndexItems(indexes, partitionKeyName, sortKeyName) : []),
+		[indexes, partitionKeyName, sortKeyName],
+	)
+
+	// Compute active key names based on selected index
+	const activeKeyNames = useMemo(() => {
+		if (!selectedIndex) {
+			return { pk: partitionKeyName, sk: sortKeyName }
+		}
+		const idx = indexes?.find((i) => i.name === selectedIndex)
+		return idx
+			? { pk: idx.partitionKey, sk: idx.sortKey }
+			: { pk: partitionKeyName, sk: sortKeyName }
+	}, [selectedIndex, indexes, partitionKeyName, sortKeyName])
+
+	// Handle index change - reset values when switching indexes
+	const handleIndexChange = (item: IndexSelectorItem) => {
+		setSelectedIndex(item.value)
+		// Clear values since key names may have changed
+		setPkValue('')
+		setSkValue('')
+		setSkValue2('')
+		setSkOperator('eq')
+		setOpIndex(0)
+		// Move to pk field
+		setActiveField('pk')
 	}
+
+	const hasIndexes = indexes && indexes.length > 0
+	const fields: FormField[] = useMemo(() => {
+		const f: FormField[] = hasIndexes ? ['index', 'pk'] : ['pk']
+		if (activeKeyNames.sk) {
+			f.push('skOp', 'sk')
+			if (skOperator === 'between') f.push('sk2')
+		}
+		return f
+	}, [hasIndexes, activeKeyNames.sk, skOperator])
 
 	const currentFieldIndex = fields.indexOf(activeField)
 	const isOnLastField = activeField === fields[fields.length - 1]
@@ -104,11 +147,12 @@ export function QueryForm({
 	const handleSubmit = () => {
 		if (!pkValue) return
 		const params: QueryFormOutput = {
-			partitionKey: { name: partitionKeyName, value: parseValue(pkValue) },
+			indexName: selectedIndex || undefined,
+			partitionKey: { name: activeKeyNames.pk, value: parseValue(pkValue) },
 		}
-		if (sortKeyName && skValue) {
+		if (activeKeyNames.sk && skValue) {
 			params.sortKey = {
-				name: sortKeyName,
+				name: activeKeyNames.sk,
 				operator: skOperator,
 				value: parseValue(skValue),
 				valueTo: skOperator === 'between' ? parseValue(skValue2) : undefined,
@@ -195,12 +239,37 @@ export function QueryForm({
 		{ isActive: focused && activeSection === 'keys' },
 	)
 
+	const isIndexActive = activeField === 'index'
 	const isPkActive = activeField === 'pk'
 	const isSkSectionActive = activeField === 'skOp' || activeField === 'sk' || activeField === 'sk2'
 	const currentOp = SK_OPERATORS[opIndex]
 
 	return (
 		<Box flexDirection="column" gap={1}>
+			{/* Index Selector Card */}
+			{hasIndexes && (
+				<Box flexDirection="column">
+					<Box
+						borderStyle="round"
+						borderColor={isIndexActive ? colors.focus : colors.border}
+						paddingX={1}
+						flexDirection="column"
+					>
+						<Box marginBottom={0}>
+							<Text color={isIndexActive ? colors.focus : colors.textMuted} bold>
+								Index
+							</Text>
+						</Box>
+						<IndexSelector
+							items={indexItems}
+							selectedValue={selectedIndex}
+							onChange={handleIndexChange}
+							focused={focused && activeField === 'index'}
+						/>
+					</Box>
+				</Box>
+			)}
+
 			{/* Partition Key Card */}
 			<Box flexDirection="column">
 				<Box
@@ -216,7 +285,7 @@ export function QueryForm({
 					</Box>
 					<Box gap={1}>
 						<Text color={isPkActive ? colors.focus : colors.textSecondary}>
-							{partitionKeyName}:
+							{activeKeyNames.pk}:
 						</Text>
 						<TextInput
 							value={pkValue}
@@ -229,7 +298,7 @@ export function QueryForm({
 			</Box>
 
 			{/* Sort Key Card */}
-			{sortKeyName && (
+			{activeKeyNames.sk && (
 				<Box flexDirection="column">
 					<Box
 						borderStyle="round"
@@ -271,7 +340,7 @@ export function QueryForm({
 						{/* Value input */}
 						<Box gap={1}>
 							<Text color={activeField === 'sk' ? colors.focus : colors.textSecondary}>
-								{sortKeyName}:
+								{activeKeyNames.sk}:
 							</Text>
 							<TextInput
 								value={skValue}
