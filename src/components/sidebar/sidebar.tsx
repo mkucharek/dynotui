@@ -117,9 +117,10 @@ export function Sidebar({ maxHeight }: SidebarProps) {
 	const isConnectionFocused = focusedPanel === 'connection'
 	const isBrowseFocused = focusedPanel === 'browse'
 
-	// Calculate heights: Connection panel gets fixed height, Browse gets the rest
+	// Calculate heights: Connection panel scales down at small heights
 	// Panel height includes: border (2) + tab header (1) + separator (1) + content
-	const connectionPanelHeight = 10
+	// At tight heights (<16), use compact 6-line connection panel (2 items visible)
+	const connectionPanelHeight = maxHeight && maxHeight < 16 ? 6 : 10
 	const browsePanelHeight = maxHeight ? maxHeight - connectionPanelHeight - 1 : undefined
 
 	return (
