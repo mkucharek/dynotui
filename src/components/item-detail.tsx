@@ -122,29 +122,35 @@ export function ItemDetail({ item, maxHeight = 30, focused = true }: ItemDetailP
 		(input, key) => {
 			if (!focused) return
 
+			const contentHeight = maxHeight - 2 // Account for scroll indicators
 			if (input === 'j' || key.downArrow) {
-				setScrollOffset((prev) => Math.min(prev + 1, Math.max(0, lines.length - maxHeight)))
+				setScrollOffset((prev) => Math.min(prev + 1, Math.max(0, lines.length - contentHeight)))
 			} else if (input === 'k' || key.upArrow) {
 				setScrollOffset((prev) => Math.max(prev - 1, 0))
 			} else if (input === 'g') {
 				setScrollOffset(0)
 			} else if (input === 'G') {
-				setScrollOffset(Math.max(0, lines.length - maxHeight))
+				setScrollOffset(Math.max(0, lines.length - contentHeight))
 			}
 		},
 		{ isActive: focused },
 	)
 
-	const visibleLines = lines.slice(scrollOffset, scrollOffset + maxHeight)
-	const hasScroll = lines.length > maxHeight
+	// Reserve 2 lines for scroll indicators (up/down arrows)
+	const contentHeight = maxHeight - 2
+	const visibleLines = lines.slice(scrollOffset, scrollOffset + contentHeight)
+	const hasMoreAbove = scrollOffset > 0
+	const hasMoreBelow = scrollOffset + contentHeight < lines.length
 
 	return (
 		<Box flexDirection="column" overflow="hidden">
 			{/* Scroll up indicator */}
-			{scrollOffset > 0 && (
+			{hasMoreAbove ? (
 				<Box justifyContent="flex-end">
 					<Text color={colors.textMuted}>{symbols.scrollUp}</Text>
 				</Box>
+			) : (
+				<Box height={1} />
 			)}
 
 			{visibleLines.map((line) => (
@@ -164,10 +170,12 @@ export function ItemDetail({ item, maxHeight = 30, focused = true }: ItemDetailP
 			))}
 
 			{/* Scroll down indicator */}
-			{hasScroll && scrollOffset + maxHeight < lines.length && (
+			{hasMoreBelow ? (
 				<Box justifyContent="flex-end">
 					<Text color={colors.textMuted}>{symbols.scrollDown}</Text>
 				</Box>
+			) : (
+				<Box height={1} />
 			)}
 		</Box>
 	)
