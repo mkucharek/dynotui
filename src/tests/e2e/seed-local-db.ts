@@ -42,6 +42,70 @@ type TableConfig = {
 }
 
 const TABLES: TableConfig[] = [
+	// Complex items table - many attributes for testing item detail scrolling
+	{
+		name: 'complex-items',
+		keySchema: [{ AttributeName: 'id', KeyType: 'HASH' }],
+		attributes: [{ AttributeName: 'id', AttributeType: 'S' }],
+		seedFn: () => {
+			const items = []
+			for (let i = 1; i <= 10; i++) {
+				items.push({
+					id: `item-${String(i).padStart(3, '0')}`,
+					title: `Complex Item ${i}`,
+					description: `A detailed description for item ${i} with lots of text to make it interesting.`,
+					created_at: new Date(Date.now() - i * 86400000).toISOString(),
+					updated_at: new Date().toISOString(),
+					status: i % 2 === 0 ? 'active' : 'pending',
+					priority: ['low', 'medium', 'high', 'critical'][i % 4],
+					category: ['electronics', 'clothing', 'books', 'home'][i % 4],
+					subcategory: `sub-${i % 5}`,
+					tags: ['tag1', 'tag2', 'tag3', `tag${i}`],
+					price: Math.round((99.99 + i * 10) * 100) / 100,
+					cost: Math.round((50 + i * 5) * 100) / 100,
+					margin: Math.round((49.99 + i * 5) * 100) / 100,
+					quantity: i * 10,
+					min_quantity: 5,
+					max_quantity: 1000,
+					weight_kg: Math.round((0.5 + i * 0.2) * 100) / 100,
+					dimensions: { length: 10 + i, width: 5 + i, height: 3 + i },
+					supplier: {
+						name: `Supplier ${i % 3}`,
+						code: `SUP-${String(i % 3).padStart(3, '0')}`,
+						contact: `supplier${i % 3}@example.com`,
+						phone: `+1-555-${String(1000 + i).padStart(4, '0')}`,
+					},
+					metadata: {
+						sku: `SKU-${String(i).padStart(6, '0')}`,
+						barcode: `${1000000000000 + i}`,
+						warehouse_location: `A${i}-B${i % 5}-C${i % 10}`,
+						last_inventory_check: new Date(Date.now() - i * 3600000).toISOString(),
+					},
+					flags: {
+						is_featured: i % 3 === 0,
+						is_on_sale: i % 4 === 0,
+						is_new_arrival: i <= 3,
+						requires_shipping: true,
+						is_fragile: i % 5 === 0,
+					},
+					ratings: {
+						average: Math.round((3.5 + (i % 15) / 10) * 10) / 10,
+						count: i * 12,
+						distribution: { '5': i * 5, '4': i * 3, '3': i * 2, '2': i, '1': Math.floor(i / 2) },
+					},
+					seo: {
+						meta_title: `Buy ${i} - Best Prices`,
+						meta_description: `Shop for item ${i} at great prices. Fast shipping available.`,
+						keywords: ['shop', 'buy', 'discount', `item${i}`],
+						slug: `complex-item-${i}`,
+					},
+					notes: `Internal notes for item ${i}. Handle with care. Contact manager for bulk orders.`,
+				})
+			}
+			return items
+		},
+	},
+
 	// Basic table - users/events
 	{
 		name: 'e2e-test-table',
