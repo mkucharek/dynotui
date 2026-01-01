@@ -1,5 +1,6 @@
 import { Box, Text, useInput } from 'ink'
 import { useState } from 'react'
+import { useTerminal } from '../../contexts/terminal-context.js'
 import { colors, symbols } from '../../theme.js'
 
 export type SidebarItem = {
@@ -73,8 +74,11 @@ export function SidebarSection({
 		{ isActive: focused },
 	)
 
+	const { sidebarWidth } = useTerminal()
 	const titleColor = focused ? colors.focus : colors.textSecondary
 	const separatorChar = symbols.sectionSeparator
+	// Separator fills sidebar content width (sidebar - border(2) - padding(2) from parent panel)
+	const separatorWidth = Math.max(10, sidebarWidth - 4)
 
 	return (
 		<Box flexDirection="column" flexGrow={flexGrow}>
@@ -93,7 +97,9 @@ export function SidebarSection({
 							{hasScrollUp && <Text color={colors.textMuted}>{symbols.scrollUp}</Text>}
 						</Box>
 					</Box>
-					<Text color={focused ? colors.focus : colors.border}>{separatorChar.repeat(24)}</Text>
+					<Text color={focused ? colors.focus : colors.border}>
+						{separatorChar.repeat(separatorWidth)}
+					</Text>
 				</>
 			)}
 

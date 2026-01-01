@@ -12,6 +12,8 @@ import {
 	type QueryFormOutput,
 	ScanFilterForm,
 } from '../components/index.js'
+import { TERMINAL } from '../constants/terminal.js'
+import { useTerminal } from '../contexts/terminal-context.js'
 import type { FilterCondition } from '../schemas/query-params.js'
 import { getErrorDisplayMessage } from '../services/dynamodb/errors.js'
 import { useAppStore } from '../store/app-store.js'
@@ -30,9 +32,15 @@ type Mode = 'scan' | 'query' | 'query-form' | 'scan-filter-form' | 'query-filter
 
 export function TableView({ state, maxHeight = 20 }: TableViewProps) {
 	const { tableName } = state
-	// MainPanel overhead: border(2) + header(1) + sep(1) + metadata(1) + margin+sep(2) + footer(1) = 8
-	// DataTable overhead: header(1) + sep(1) + scroll indicators(~1) = 3
-	const tableMaxRows = Math.max(5, maxHeight - 11)
+	const { contentHeight, mainWidth } = useTerminal()
+	// Use context contentHeight if no explicit maxHeight, with overhead subtraction
+	const effectiveMaxHeight = maxHeight === 20 ? contentHeight : maxHeight
+	const tableMaxRows = Math.max(
+		5,
+		effectiveMaxHeight - TERMINAL.MAIN_PANEL_OVERHEAD - TERMINAL.DATA_TABLE_OVERHEAD,
+	)
+	// Available width for DataTable: mainWidth minus panel padding/border
+	const tableAvailableWidth = mainWidth - 4
 	const { navigate, goBack, focusedPanel, setInputMode } = useAppStore()
 	const { fetchTableInfo, tableInfoCache } = useTables()
 	const scan = useScan(tableName)
@@ -432,6 +440,7 @@ export function TableView({ state, maxHeight = 20 }: TableViewProps) {
 					maxHeight={tableMaxRows}
 					focused={isMainFocused}
 					getRowKey={getRowKey}
+					availableWidth={tableAvailableWidth}
 					onEnter={(row) => {
 						navigate({ view: 'item', tableName, item: row }, state)
 					}}

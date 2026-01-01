@@ -139,7 +139,7 @@ describe('IndexSelector', () => {
 		)
 
 		stdin.write('j') // Move down
-		await new Promise((r) => setTimeout(r, 10))
+		await new Promise((r) => setTimeout(r, 50))
 		stdin.write('\r') // Select
 		expect(onChange).toHaveBeenCalledWith(mockItems[1])
 	})

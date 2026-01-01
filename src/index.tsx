@@ -1,8 +1,16 @@
 import { stdout } from 'node:process'
-import { Box, render, Text, useApp, useInput, useStdout } from 'ink'
+import { Box, render, Text, useApp, useInput } from 'ink'
 import meow from 'meow'
 import { useEffect } from 'react'
-import { Footer, Header, Panel, Sidebar, SplitLayout } from './components/index.js'
+import {
+	Footer,
+	Header,
+	Panel,
+	Sidebar,
+	SplitLayout,
+	TerminalTooSmall,
+} from './components/index.js'
+import { TerminalProvider, useTerminal } from './contexts/terminal-context.js'
 import { resolveConfig } from './services/config-resolver.js'
 import { useAppStore } from './store/app-store.js'
 import { borders, colors } from './theme.js'
@@ -93,7 +101,7 @@ function MainContent({ terminalHeight }: { terminalHeight: number }) {
 
 function App({ initialConfig }: { initialConfig: RuntimeConfig }) {
 	const { exit } = useApp()
-	const { stdout: stdoutStream } = useStdout()
+	const { width, height, contentHeight, sidebarWidth, isTooSmall } = useTerminal()
 	const {
 		currentView,
 		focusedPanel,
@@ -103,9 +111,6 @@ function App({ initialConfig }: { initialConfig: RuntimeConfig }) {
 		setFocusedPanel,
 		initializeFromResolution,
 	} = useAppStore()
-
-	const terminalHeight = stdoutStream?.rows ?? 24
-	const terminalWidth = stdoutStream?.columns ?? 80
 
 	useEffect(() => {
 		initializeFromResolution(initialConfig)
@@ -168,15 +173,18 @@ function App({ initialConfig }: { initialConfig: RuntimeConfig }) {
 		{ isActive: focusedPanel !== 'main' },
 	)
 
-	// Outer frame (2) + Header (1) + Separator (1) + Footer (1) + Separator (1) = 6 lines
-	const contentHeight = terminalHeight - 6
-	const separatorWidth = Math.max(1, terminalWidth - 2)
+	// Show fallback when terminal too small
+	if (isTooSmall) {
+		return <TerminalTooSmall width={width} height={height} />
+	}
+
+	const separatorWidth = Math.max(1, width - 2)
 
 	return (
 		<Box
 			flexDirection="column"
 			width="100%"
-			height={terminalHeight}
+			height={height}
 			borderStyle={borders.style}
 			borderColor={colors.border}
 		>
@@ -187,7 +195,7 @@ function App({ initialConfig }: { initialConfig: RuntimeConfig }) {
 			<SplitLayout
 				sidebar={<Sidebar maxHeight={contentHeight} />}
 				main={<MainContent terminalHeight={contentHeight} />}
-				sidebarWidth={30}
+				sidebarWidth={sidebarWidth}
 				height={contentHeight}
 			/>
 			<Box width="100%">
@@ -200,7 +208,11 @@ function App({ initialConfig }: { initialConfig: RuntimeConfig }) {
 
 // Enter alternate screen buffer (preserves terminal scrollback)
 stdout.write('\x1B[?1049h')
-const instance = render(<App initialConfig={resolvedConfig} />)
+const instance = render(
+	<TerminalProvider>
+		<App initialConfig={resolvedConfig} />
+	</TerminalProvider>,
+)
 instance.waitUntilExit().then(() => {
 	stdout.write('\x1B[?1049l') // Restore main screen
 })
