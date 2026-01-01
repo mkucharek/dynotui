@@ -1,5 +1,6 @@
-import { Box, Text, useStdout } from 'ink'
+import { Box, Text } from 'ink'
 import type { ReactNode } from 'react'
+import { useTerminal } from '../../contexts/terminal-context.js'
 import { colors, symbols } from '../../theme.js'
 
 export type MainPanelProps = {
@@ -25,12 +26,11 @@ export function MainPanel({
 	footer,
 	children,
 }: MainPanelProps) {
-	const { stdout } = useStdout()
+	const { mainWidth } = useTerminal()
 	const borderColor = focused ? colors.focus : colors.border
 
-	// Calculate separator width: terminal width - outer border (2) - sidebar (30) - gap (1) - panel border (2) - padding (2)
-	const terminalWidth = stdout?.columns ?? 80
-	const separatorWidth = Math.max(10, terminalWidth - 37)
+	// Separator fills main panel width minus padding (2) and border (2)
+	const separatorWidth = Math.max(10, mainWidth - 4)
 
 	return (
 		<Box

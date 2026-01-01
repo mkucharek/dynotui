@@ -1,5 +1,6 @@
 import { Box, Text } from 'ink'
 import type { ReactNode } from 'react'
+import { useTerminal } from '../../contexts/terminal-context.js'
 import { colors, symbols } from '../../theme.js'
 
 export type TabDef = {
@@ -26,7 +27,10 @@ export function SidebarPanel({
 	flexGrow,
 	children,
 }: SidebarPanelProps) {
+	const { sidebarWidth } = useTerminal()
 	const borderColor = focused ? colors.focus : colors.border
+	// Separator fills sidebar width minus padding (2) and border (2)
+	const separatorWidth = Math.max(10, sidebarWidth - 4)
 
 	return (
 		<Box
@@ -60,7 +64,7 @@ export function SidebarPanel({
 
 			{/* Separator */}
 			<Box paddingX={1}>
-				<Text color={borderColor}>{symbols.sectionSeparator.repeat(24)}</Text>
+				<Text color={borderColor}>{symbols.sectionSeparator.repeat(separatorWidth)}</Text>
 			</Box>
 
 			{/* Content */}

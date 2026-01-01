@@ -1,5 +1,7 @@
 import { Box, Text, useInput } from 'ink'
 import { ItemDetail, MainPanel } from '../components/index.js'
+import { TERMINAL } from '../constants/terminal.js'
+import { useTerminal } from '../contexts/terminal-context.js'
 import { useAppStore } from '../store/app-store.js'
 import { colors, symbols } from '../theme.js'
 import type { ItemViewState } from '../types/navigation.js'
@@ -11,7 +13,11 @@ export type ItemViewProps = {
 
 export function ItemView({ state, maxHeight = 20 }: ItemViewProps) {
 	const { tableName, item } = state
+	const { contentHeight } = useTerminal()
 	const { goBack, focusedPanel } = useAppStore()
+	// Use context contentHeight with overhead subtraction
+	const effectiveMaxHeight = maxHeight === 20 ? contentHeight : maxHeight
+	const detailMaxHeight = Math.max(5, effectiveMaxHeight - TERMINAL.MAIN_PANEL_OVERHEAD - 2)
 
 	const isMainFocused = focusedPanel === 'main'
 
@@ -51,7 +57,7 @@ export function ItemView({ state, maxHeight = 20 }: ItemViewProps) {
 			focused={isMainFocused}
 			metadata={metadataContent}
 		>
-			<ItemDetail item={item} maxHeight={maxHeight - 10} />
+			<ItemDetail item={item} maxHeight={detailMaxHeight} />
 		</MainPanel>
 	)
 }

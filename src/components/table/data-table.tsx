@@ -1,5 +1,6 @@
 import { Box, Text, useInput } from 'ink'
 import { useCallback, useMemo, useState } from 'react'
+import { TERMINAL } from '../../constants/terminal.js'
 import { colors, symbols } from '../../theme.js'
 
 export type Column<T> = {
@@ -20,6 +21,8 @@ export type DataTableProps<T extends Record<string, unknown>> = {
 	focused?: boolean
 	/** Function to generate stable key for each row. Defaults to using row index. */
 	getRowKey?: (row: T, index: number) => string
+	/** Available width for the table. Columns will scale to fit. */
+	availableWidth?: number
 }
 
 function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
@@ -91,17 +94,41 @@ function formatValueString(value: unknown): string {
 function calculateColumnWidths<T extends Record<string, unknown>>(
 	data: T[],
 	columns: Column<T>[],
-	maxWidth = 30,
+	availableWidth?: number,
 ): number[] {
-	return columns.map((col) => {
+	const { MIN_COLUMN_WIDTH, SELECTOR_WIDTH, COLUMN_GAP } = TERMINAL
+
+	// Calculate natural widths (what each column wants)
+	const naturalWidths = columns.map((col) => {
 		const headerLen = col.header.length
 		const maxDataLen = data.reduce((max, row) => {
 			const value = getNestedValue(row, col.key as string)
 			const formatted = col.render ? col.render(value, row) : formatValueString(value)
 			return Math.max(max, formatted.length)
 		}, 0)
-		return Math.min(col.width ?? Math.max(headerLen, maxDataLen), maxWidth)
+		return col.width ?? Math.max(headerLen, maxDataLen)
 	})
+
+	// If no availableWidth, use reasonable defaults
+	if (!availableWidth) {
+		return naturalWidths.map((w) => Math.min(w, 30))
+	}
+
+	// Calculate total natural width with gaps
+	const totalGaps = columns.length * COLUMN_GAP
+	const totalNatural = naturalWidths.reduce((a, b) => a + b, 0)
+	const usedWidth = totalNatural + totalGaps + SELECTOR_WIDTH
+
+	// If everything fits, return natural widths
+	if (usedWidth <= availableWidth) {
+		return naturalWidths
+	}
+
+	// Scale down proportionally to fit available width
+	const targetContentWidth = availableWidth - SELECTOR_WIDTH - totalGaps
+	const scaleFactor = targetContentWidth / totalNatural
+
+	return naturalWidths.map((w) => Math.max(MIN_COLUMN_WIDTH, Math.floor(w * scaleFactor)))
 }
 
 function detectAlignment<T extends Record<string, unknown>>(
@@ -127,6 +154,7 @@ export function DataTable<T extends Record<string, unknown>>({
 	maxHeight = 20,
 	focused = true,
 	getRowKey,
+	availableWidth,
 }: DataTableProps<T>) {
 	const [internalIndex, setInternalIndex] = useState(0)
 	const selectedIndex = controlledIndex ?? internalIndex
@@ -138,7 +166,10 @@ export function DataTable<T extends Record<string, unknown>>({
 		return keys.slice(0, 5).map((key) => ({ key, header: key }))
 	}, [propColumns, data])
 
-	const columnWidths = useMemo(() => calculateColumnWidths(data, columns), [data, columns])
+	const columnWidths = useMemo(
+		() => calculateColumnWidths(data, columns, availableWidth),
+		[data, columns, availableWidth],
+	)
 
 	const columnAlignments = useMemo(
 		() => columns.map((col) => detectAlignment(data, col)),

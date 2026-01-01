@@ -39,3 +39,4 @@ export {
 	type QueryFilterSummaryProps,
 } from './table/query-filter-summary.js'
 export { TableList, type TableListProps } from './table-list.js'
+export { TerminalTooSmall, type TerminalTooSmallProps } from './terminal-too-small.js'
