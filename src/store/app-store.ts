@@ -16,7 +16,7 @@ const savedConfig = loadUserConfig()
 
 export type FocusedPanel = 'connection' | 'browse' | 'main'
 export type ConnectionTab = 'profile' | 'region'
-export type BrowseTab = 'tables' | 'saved'
+export type BrowseTab = 'tables'
 export type InputMode = 'sidebar' | 'normal' | 'query-form' | 'scan-filter' | 'item-detail'
 
 export const DEFAULT_PAGE_SIZE = 25
@@ -435,8 +435,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 					return { connectionTab: newTab }
 				}
 				if (panel === 'browse') {
-					const newTab = state.browseTab === 'tables' ? 'saved' : 'tables'
-					return { browseTab: newTab }
+					// Only one tab currently
+					return state
 				}
 				return state
 			}
@@ -473,13 +473,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 				return { connectionTab: tabs[nextIdx] }
 			}
 			if (state.focusedPanel === 'browse') {
-				const tabs: BrowseTab[] = ['tables', 'saved']
-				const currentIdx = tabs.indexOf(state.browseTab)
-				const nextIdx =
-					direction === 'next'
-						? (currentIdx + 1) % tabs.length
-						: (currentIdx - 1 + tabs.length) % tabs.length
-				return { browseTab: tabs[nextIdx] }
+				// Only one tab currently
+				return state
 			}
 			return state
 		}),

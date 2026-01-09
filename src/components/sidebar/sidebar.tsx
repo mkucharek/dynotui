@@ -1,10 +1,9 @@
-import { Box, Text } from 'ink'
+import { Box } from 'ink'
 import { useMemo } from 'react'
 import { getAwsRegions, listProfiles } from '../../services/aws-config.js'
 import { getErrorDisplayMessage } from '../../services/dynamodb/errors.js'
 import { useAppStore } from '../../store/app-store.js'
 import { useTables } from '../../store/use-tables.js'
-import { colors } from '../../theme.js'
 import { SidebarPanel } from './sidebar-panel.js'
 import { type SidebarItem, SidebarSection } from './sidebar-section.js'
 
@@ -126,12 +125,9 @@ export function Sidebar({ maxHeight }: SidebarProps) {
 				)}
 			</SidebarPanel>
 
-			{/* Browse Panel (Tables / Saved) */}
+			{/* Browse Panel (Tables) */}
 			<SidebarPanel
-				tabs={[
-					{ id: 'tables', label: 'Tables' },
-					{ id: 'saved', label: 'Saved' },
-				]}
+				tabs={[{ id: 'tables', label: 'Tables' }]}
 				activeTab={browseTab}
 				panelNumber={2}
 				focused={isBrowseFocused}
@@ -150,14 +146,6 @@ export function Sidebar({ maxHeight }: SidebarProps) {
 						error={error ? getErrorDisplayMessage(error) : undefined}
 						isLoading={isLoading}
 					/>
-				)}
-				{browseTab === 'saved' && (
-					<Box flexDirection="column" padding={1}>
-						<Text color={colors.textMuted}>No saved queries yet</Text>
-						<Text color={colors.textMuted} dimColor>
-							Save queries from table view
-						</Text>
-					</Box>
 				)}
 			</SidebarPanel>
 		</Box>
