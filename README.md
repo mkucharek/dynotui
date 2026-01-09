@@ -5,7 +5,21 @@ A terminal user interface (TUI) client for AWS DynamoDB built with React and Ink
 ## Installation
 
 ```bash
+npm install -g @mkucharek/dynotui
+```
+
+Then run:
+```bash
+dynotui
+```
+
+### From source
+
+```bash
+git clone https://github.com/mkucharek/dynotui.git
+cd dynotui
 pnpm install
+pnpm build
 ```
 
 ## Usage
@@ -74,6 +88,28 @@ pnpm test:e2e:local
 
 # With real AWS (requires valid credentials)
 pnpm test:e2e
+```
+
+## Publishing to npm
+
+Pre-publish checklist:
+```bash
+pnpm verify              # Lint, build, run tests with coverage
+npm pack                 # Create tarball, inspect contents
+npm install -g ./mkucharek-dynotui-0.1.0.tgz  # Test local install
+dynotui --help           # Verify CLI works
+```
+
+Publish:
+```bash
+npm login                # Login to npm (first time only)
+npm publish              # Publish to registry
+```
+
+After publishing:
+```bash
+git tag v0.1.0
+git push origin v0.1.0
 ```
 
 ## License
