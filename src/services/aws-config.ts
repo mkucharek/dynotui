@@ -69,7 +69,32 @@ function parseIniFile(content: string): Record<string, Record<string, string>> {
 	return result
 }
 
+// Test profiles for verifying sidebar scrolling/truncation
+const TEST_PROFILES: AwsProfile[] = [
+	{ name: 'default', region: 'us-east-1' },
+	{ name: 'dev', region: 'us-east-1' },
+	{ name: 'staging', region: 'us-west-2' },
+	{ name: 'production', region: 'eu-west-1' },
+	{ name: 'production-readonly', region: 'eu-west-1' },
+	{ name: 'analytics-data-warehouse', region: 'us-east-1' },
+	{ name: 'customer-support-tools', region: 'ap-southeast-1' },
+	{ name: 'internal-services-dev', region: 'eu-central-1' },
+	{ name: 'very-long-profile-name-that-will-truncate', region: 'ap-northeast-1' },
+	{ name: 'short', region: 'sa-east-1' },
+	{ name: 'test-account-alpha', region: 'us-east-2' },
+	{ name: 'test-account-beta', region: 'us-west-1' },
+]
+
 export function listProfiles(): AwsProfile[] {
+	// Use test profiles for development testing
+	if (process.env.DYNOTUI_TEST_PROFILES === 'true') {
+		return [...TEST_PROFILES].sort((a, b) => {
+			if (a.name === 'default') return -1
+			if (b.name === 'default') return 1
+			return a.name.localeCompare(b.name)
+		})
+	}
+
 	const profiles: AwsProfile[] = []
 	const configPath = join(homedir(), '.aws', 'config')
 	const credentialsPath = join(homedir(), '.aws', 'credentials')

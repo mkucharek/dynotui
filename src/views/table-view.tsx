@@ -116,8 +116,10 @@ export function TableView({ state, maxHeight = 20 }: TableViewProps) {
 	}, [items])
 
 	useEffect(() => {
-		fetchTableInfo(tableName)
-	}, [tableName, fetchTableInfo])
+		if (!tableInfo) {
+			fetchTableInfo(tableName)
+		}
+	}, [tableName, tableInfo, fetchTableInfo])
 
 	// Only run initial scan if not already initialized (prevents re-fetch on back-nav)
 	useEffect(() => {

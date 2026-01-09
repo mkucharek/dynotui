@@ -48,8 +48,7 @@ function TabBar({ activeTab }: TabBarProps) {
 export function HomeView() {
 	const { currentView, navigate, profile, region, setRuntimeProfile, setRuntimeProfileAndRegion } =
 		useAppStore()
-	const { tables, isLoading, error, hasMore, initialized, fetchTables, fetchNextPage, refresh } =
-		useTables()
+	const { tables, isLoading, error, hasMore, fetchNextPage, refresh } = useTables()
 
 	const initialIndex = currentView.view === 'home' ? (currentView.selectedIndex ?? 0) : 0
 	const [tableSelectedIndex, setTableSelectedIndex] = useState(initialIndex)
@@ -98,12 +97,6 @@ export function HomeView() {
 		const idx = profiles.findIndex((p) => p.name === (profile ?? 'default'))
 		return idx >= 0 ? idx : 0
 	}, [profiles, profile])
-
-	useEffect(() => {
-		if (!initialized && !isLoading) {
-			fetchTables(true)
-		}
-	}, [initialized, isLoading, fetchTables])
 
 	useEffect(() => {
 		setProfileSelectedIndex(currentProfileIndex)

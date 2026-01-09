@@ -2,7 +2,12 @@ import { create } from 'zustand'
 import type { FilterCondition } from '../schemas/query-params.js'
 import { getDefaultRegion } from '../services/aws-config.js'
 import { type ParsedDynamoDBError, parseDynamoDBError } from '../services/dynamodb/errors.js'
-import { getTableInfo, listTables, type TableInfo } from '../services/dynamodb/index.js'
+import {
+	getTableInfo,
+	listTables,
+	resetClient,
+	type TableInfo,
+} from '../services/dynamodb/index.js'
 import { loadUserConfig, saveUserConfig } from '../services/user-config.js'
 import type { ConfigDefaults, ConfigSource, ResolvedValue, RuntimeConfig } from '../types/config.js'
 import type { ViewState } from '../types/navigation.js'
@@ -112,7 +117,7 @@ export type AppState = {
 	setInputMode: (mode: InputMode) => void
 }
 
-const initialTablesState: TablesState = {
+const createInitialTablesState = (): TablesState => ({
 	tables: [],
 	tableInfoCache: new Map(),
 	isLoading: false,
@@ -120,7 +125,7 @@ const initialTablesState: TablesState = {
 	hasMore: true,
 	lastTableName: undefined,
 	initialized: false,
-}
+})
 
 export const createInitialScanState = (): ScanState => ({
 	items: [],
@@ -161,7 +166,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 	},
 	currentView: { view: 'home' },
 	history: [],
-	tablesState: initialTablesState,
+	tablesState: createInitialTablesState(),
 	scanStateCache: new Map(),
 	queryStateCache: new Map(),
 	focusedPanel: 'connection',
@@ -170,12 +175,15 @@ export const useAppStore = create<AppState>((set, get) => ({
 	inputMode: 'sidebar',
 
 	initializeFromResolution: (config) => {
+		// Reset client to ensure fresh credentials for the resolved profile
+		resetClient()
 		set({
 			runtimeProfile: config.profile,
 			runtimeRegion: config.region,
 			profile: config.profile.value,
 			region: config.region.value,
 		})
+		get().fetchTables(true)
 	},
 
 	setRuntimeProfile: (profile, source) => {
@@ -188,7 +196,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 			runtimeRegion: newRuntimeRegion,
 			profile,
 			region: newRegion,
-			tablesState: initialTablesState,
+			tablesState: createInitialTablesState(),
 			scanStateCache: new Map(),
 			queryStateCache: new Map(),
 		})
@@ -200,7 +208,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 		set({
 			runtimeRegion: newRuntimeRegion,
 			region,
-			tablesState: initialTablesState,
+			tablesState: createInitialTablesState(),
 			scanStateCache: new Map(),
 			queryStateCache: new Map(),
 		})
@@ -219,7 +227,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 			runtimeRegion: newRuntimeRegion,
 			profile,
 			region,
-			tablesState: initialTablesState,
+			tablesState: createInitialTablesState(),
 			scanStateCache: new Map(),
 			queryStateCache: new Map(),
 		})
@@ -319,6 +327,11 @@ export const useAppStore = create<AppState>((set, get) => ({
 		const { profile, region, tablesState } = get()
 		const startTableName = reset ? undefined : tablesState.lastTableName
 
+		// Reset client on fresh fetch to ensure correct credentials for current profile
+		if (reset) {
+			resetClient()
+		}
+
 		set({
 			tablesState: {
 				...tablesState,
@@ -374,7 +387,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 		}
 	},
 
-	clearTables: () => set({ tablesState: initialTablesState }),
+	clearTables: () => set({ tablesState: createInitialTablesState() }),
 
 	// Scan state actions
 	getScanState: (tableName) => {

@@ -2,7 +2,6 @@ import { Box, Text } from 'ink'
 import { useEffect, useMemo, useState } from 'react'
 import { getAwsRegions, listProfiles } from '../../services/aws-config.js'
 import { getErrorDisplayMessage } from '../../services/dynamodb/errors.js'
-import { resetClient } from '../../services/dynamodb/index.js'
 import { useAppStore } from '../../store/app-store.js'
 import { useTables } from '../../store/use-tables.js'
 import { colors } from '../../theme.js'
@@ -26,7 +25,7 @@ export function Sidebar({ maxHeight }: SidebarProps) {
 		currentView,
 	} = useAppStore()
 
-	const { tables, isLoading, error, initialized, fetchTables } = useTables()
+	const { tables, isLoading, error } = useTables()
 
 	const [profileIndex, setProfileIndex] = useState(0)
 	const [regionIndex, setRegionIndex] = useState(0)
@@ -70,13 +69,6 @@ export function Sidebar({ maxHeight }: SidebarProps) {
 		[tables],
 	)
 
-	// Initialize tables on mount
-	useEffect(() => {
-		if (!initialized && !isLoading) {
-			fetchTables(true)
-		}
-	}, [initialized, isLoading, fetchTables])
-
 	// Sync profile index with current profile
 	useEffect(() => {
 		const idx = profiles.findIndex((p) => p.name === (profile ?? 'default'))
@@ -99,12 +91,10 @@ export function Sidebar({ maxHeight }: SidebarProps) {
 
 	const handleProfileSelect = (item: SidebarItem) => {
 		const newProfile = item.id === 'default' ? undefined : item.id
-		resetClient()
 		setRuntimeProfile(newProfile, 'default')
 	}
 
 	const handleRegionSelect = (item: SidebarItem) => {
-		resetClient()
 		setRuntimeRegion(item.id, 'default')
 	}
 

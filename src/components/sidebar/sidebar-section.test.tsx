@@ -119,6 +119,46 @@ describe('SidebarSection', () => {
 		expect(frame).toContain('10')
 	})
 
+	it('uses edge-based scrolling (viewport stable when selection moves within view)', () => {
+		const manyItems: SidebarItem[] = Array.from({ length: 10 }, (_, i) => ({
+			id: `item${i}`,
+			label: `Item ${i}`,
+		}))
+
+		// Start with selection at index 5, viewport should show items around it
+		const { lastFrame, rerender } = render(
+			withTestWrapper(
+				<SidebarSection items={manyItems} selectedIndex={5} maxVisibleItems={5} focused={true} />,
+			),
+		)
+
+		let frame = lastFrame() ?? ''
+		// Item 5 should be visible
+		expect(frame).toContain('Item 5')
+
+		// Move selection up to index 4 - viewport should stay stable
+		rerender(
+			withTestWrapper(
+				<SidebarSection items={manyItems} selectedIndex={4} maxVisibleItems={5} focused={true} />,
+			),
+		)
+
+		frame = lastFrame() ?? ''
+		expect(frame).toContain('Item 4')
+		expect(frame).toContain('Item 5') // Item 5 should still be visible (no viewport jump)
+	})
+
+	it('truncates long labels with ellipsis', () => {
+		const longItems: SidebarItem[] = [
+			{ id: 'long', label: 'very-long-profile-name-that-exceeds-sidebar', secondary: 'us-east-1' },
+		]
+
+		const { lastFrame } = render(withTestWrapper(<SidebarSection items={longItems} />))
+		const frame = lastFrame() ?? ''
+		// Should contain truncation ellipsis
+		expect(frame).toContain('…')
+	})
+
 	it('shows error message', () => {
 		const { lastFrame } = render(
 			withTestWrapper(<SidebarSection title="Items" items={[]} error="Token expired" />),

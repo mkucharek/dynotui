@@ -13,6 +13,7 @@
 	"scripts": {
 		"dev": "tsx src/index.tsx",
 		"dev:local": "DYNAMODB_ENDPOINT=http://localhost:8000 tsx src/index.tsx",
+		"dev:test-profiles": "DYNOTUI_TEST_PROFILES=true DYNAMODB_ENDPOINT=http://localhost:8000 tsx src/index.tsx",
 		"build": "tsup",
 		"test": "vitest run",
 		"test:watch": "vitest",
