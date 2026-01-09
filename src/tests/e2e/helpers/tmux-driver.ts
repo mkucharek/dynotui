@@ -46,6 +46,11 @@ export class TmuxDriver {
 		this.killSession()
 		await this.sleep(100)
 
+		// Build command with environment variables for local DynamoDB
+		// We use bash -c to ensure the env var is properly interpreted
+		const endpoint = process.env.DYNAMODB_ENDPOINT
+		const fullCommand = endpoint ? `bash -c 'DYNAMODB_ENDPOINT=${endpoint} ${command}'` : command
+
 		// Start new session with the command
 		execFileSync(
 			'tmux',
@@ -58,7 +63,7 @@ export class TmuxDriver {
 				String(this.width),
 				'-y',
 				String(this.height),
-				command,
+				fullCommand,
 			],
 			{ stdio: 'ignore' },
 		)
@@ -186,35 +191,38 @@ export class TmuxDriver {
 		// Verify table is visible in list
 		await this.waitFor(tableName, { timeout: 5000 })
 
-		// Go to top of list first (press 'g' for vim-style go to top, or k enough times)
+		// Go to top of list first
 		this.sendKeys('g')
-		await this.tick(200)
+		await this.tick(300)
 
-		// Now navigate down to find the target table
-		// Tables are alphabetically sorted, so navigate down until we see
-		// the table name in the header after pressing Enter
-		for (let attempts = 0; attempts < 10; attempts++) {
-			// Try entering this table
-			this.sendSpecialKey('Enter')
-			await this.tick(500)
+		// Navigate down until the highlighted row contains our table
+		for (let attempts = 0; attempts < 15; attempts++) {
+			const listScreen = this.capture()
 
-			const screen = this.capture()
-			// Check if we're in the right table view
-			if (screen.includes(`› ${tableName} ›`)) {
-				// Found it! Wait for full load
-				await this.waitFor('› scan', { timeout: 10000 })
-				await this.waitFor('PK:', { timeout: 30000 })
-				await this.waitForGone('Loading', { timeout: 30000 })
-				return
+			// Look for the table name with the highlight marker (▸)
+			if (listScreen.includes(`▸ ${tableName}`) || listScreen.includes(`▸  ${tableName}`)) {
+				this.sendSpecialKey('Enter')
+				await this.tick(500)
+
+				// Verify we entered the correct table
+				const screen = this.capture()
+				if (screen.includes(`› ${tableName} ›`)) {
+					await this.waitFor('› scan', { timeout: 10000 })
+					await this.waitFor('PK:', { timeout: 30000 })
+					await this.waitForGone('Loading', { timeout: 30000 })
+					return
+				}
+
+				// Wrong table, go back and continue
+				this.sendSpecialKey('Escape')
+				await this.tick(300)
+				this.sendKeys('2')
+				await this.tick(300)
 			}
 
-			// Wrong table, go back and try next
-			this.sendSpecialKey('Escape')
+			// Move to next table
+			this.sendKeys('j')
 			await this.tick(300)
-			this.sendKeys('2') // Refocus tables panel
-			await this.tick(300)
-			this.sendKeys('j') // Next table
-			await this.tick(200)
 		}
 
 		throw new Error(`Could not navigate to table: ${tableName}`)
