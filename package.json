@@ -1,5 +1,5 @@
 {
-	"name": "dynotui",
+	"name": "@mkucharek/dynotui",
 	"version": "0.1.0",
 	"description": "DynamoDB TUI client",
 	"type": "module",
@@ -10,6 +10,21 @@
 	"files": [
 		"dist"
 	],
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/mkucharek/dynotui.git"
+	},
+	"homepage": "https://github.com/mkucharek/dynotui#readme",
+	"bugs": {
+		"url": "https://github.com/mkucharek/dynotui/issues"
+	},
+	"author": "Maciej Kucharek <qchcio@gmail.com>",
+	"engines": {
+		"node": ">=20"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
 	"scripts": {
 		"dev": "tsx src/index.tsx",
 		"dev:local": "DYNAMODB_ENDPOINT=http://localhost:8000 tsx src/index.tsx",
@@ -36,7 +51,6 @@
 		"cli",
 		"aws"
 	],
-	"author": "",
 	"license": "MIT",
 	"packageManager": "pnpm@10.22.0",
 	"dependencies": {
