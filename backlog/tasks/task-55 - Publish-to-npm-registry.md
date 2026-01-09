@@ -1,10 +1,10 @@
 ---
 id: task-55
 title: Publish to npm registry
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-01-09 16:50'
-updated_date: '2026-01-09 19:52'
+updated_date: '2026-01-09 20:18'
 labels:
   - distribution
   - npm
@@ -26,7 +26,7 @@ Make DynoTUI installable via `npm install -g dynotui`. Includes package.json set
 - [x] #4 README has npm install command and publishing instructions
 - [x] #5 `pnpm verify` passes
 - [x] #6 `npm pack` creates valid tarball
-- [ ] #7 Package installs and runs correctly from tarball
+- [x] #7 Package installs and runs correctly from tarball
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -41,4 +41,6 @@ Make DynoTUI installable via `npm install -g dynotui`. Includes package.json set
 Package name: @mkucharek/dynotui\nVersion: 0.1.0\nNode requirement: >=20\nPublishing: Manual only (npm publish)
 
 PR: https://github.com/mkucharek/dynotui/pull/6
+
+Published v0.1.0 to npm registry on 2026-01-09
 <!-- SECTION:NOTES:END -->
