@@ -4,7 +4,7 @@ title: Publish to npm registry
 status: In Progress
 assignee: []
 created_date: '2026-01-09 16:50'
-updated_date: '2026-01-09 17:12'
+updated_date: '2026-01-09 19:52'
 labels:
   - distribution
   - npm
@@ -39,4 +39,6 @@ Make DynoTUI installable via `npm install -g dynotui`. Includes package.json set
 
 <!-- SECTION:NOTES:BEGIN -->
 Package name: @mkucharek/dynotui\nVersion: 0.1.0\nNode requirement: >=20\nPublishing: Manual only (npm publish)
+
+PR: https://github.com/mkucharek/dynotui/pull/6
 <!-- SECTION:NOTES:END -->
