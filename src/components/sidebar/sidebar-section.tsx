@@ -43,7 +43,11 @@ export function SidebarSection({
 	error,
 	isLoading,
 }: SidebarSectionProps) {
-	const [internalIndex, setInternalIndex] = useState(0)
+	// Initialize internal index from activeId (for uncontrolled mode)
+	const [internalIndex, setInternalIndex] = useState(() => {
+		const idx = items.findIndex((i) => i.id === activeId)
+		return idx >= 0 ? idx : 0
+	})
 	const selectedIndex = controlledIndex ?? internalIndex
 
 	// Reserve 1 row for scroll indicator when we have more items than can fit

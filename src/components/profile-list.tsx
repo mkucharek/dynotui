@@ -21,7 +21,11 @@ export function ProfileList({
 	focused = true,
 	maxHeight = 15,
 }: ProfileListProps) {
-	const [internalIndex, setInternalIndex] = useState(0)
+	// Initialize internal index from currentProfile (for uncontrolled mode)
+	const [internalIndex, setInternalIndex] = useState(() => {
+		const idx = profiles.findIndex((p) => p.name === (currentProfile ?? 'default'))
+		return idx >= 0 ? idx : 0
+	})
 	const selectedIndex = controlledIndex ?? internalIndex
 
 	const handleSelect = (index: number) => {

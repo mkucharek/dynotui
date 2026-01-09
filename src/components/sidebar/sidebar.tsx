@@ -1,5 +1,5 @@
 import { Box, Text } from 'ink'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { getAwsRegions, listProfiles } from '../../services/aws-config.js'
 import { getErrorDisplayMessage } from '../../services/dynamodb/errors.js'
 import { useAppStore } from '../../store/app-store.js'
@@ -26,10 +26,6 @@ export function Sidebar({ maxHeight }: SidebarProps) {
 	} = useAppStore()
 
 	const { tables, isLoading, error } = useTables()
-
-	const [profileIndex, setProfileIndex] = useState(0)
-	const [regionIndex, setRegionIndex] = useState(0)
-	const [tableIndex, setTableIndex] = useState(0)
 
 	const profiles = useMemo(() => {
 		const items = listProfiles()
@@ -69,25 +65,9 @@ export function Sidebar({ maxHeight }: SidebarProps) {
 		[tables],
 	)
 
-	// Sync profile index with current profile
-	useEffect(() => {
-		const idx = profiles.findIndex((p) => p.name === (profile ?? 'default'))
-		if (idx >= 0) setProfileIndex(idx)
-	}, [profiles, profile])
-
-	// Sync region index with current region
-	useEffect(() => {
-		const idx = regions.indexOf(region)
-		if (idx >= 0) setRegionIndex(idx)
-	}, [regions, region])
-
-	// Sync table index with current table view
-	useEffect(() => {
-		if (currentView.view === 'table') {
-			const idx = tables.indexOf(currentView.tableName)
-			if (idx >= 0) setTableIndex(idx)
-		}
-	}, [currentView, tables])
+	// Derive current table name for active state
+	const currentTableName =
+		currentView.view === 'table' || currentView.view === 'item' ? currentView.tableName : undefined
 
 	const handleProfileSelect = (item: SidebarItem) => {
 		const newProfile = item.id === 'default' ? undefined : item.id
@@ -102,8 +82,6 @@ export function Sidebar({ maxHeight }: SidebarProps) {
 		navigate({ view: 'table', tableName: item.id, mode: 'scan' }, currentView)
 	}
 
-	const currentTableName =
-		currentView.view === 'table' || currentView.view === 'item' ? currentView.tableName : undefined
 	const isConnectionFocused = focusedPanel === 'connection'
 	const isBrowseFocused = focusedPanel === 'browse'
 
@@ -128,10 +106,9 @@ export function Sidebar({ maxHeight }: SidebarProps) {
 			>
 				{connectionTab === 'profile' && (
 					<SidebarSection
+						key={`profile-${profile ?? 'default'}`}
 						items={profileItems}
 						activeId={profile ?? 'default'}
-						selectedIndex={profileIndex}
-						onSelect={setProfileIndex}
 						onEnter={handleProfileSelect}
 						focused={isConnectionFocused}
 						maxVisibleItems={connectionPanelHeight - 4}
@@ -139,10 +116,9 @@ export function Sidebar({ maxHeight }: SidebarProps) {
 				)}
 				{connectionTab === 'region' && (
 					<SidebarSection
+						key={`region-${region}`}
 						items={regionItems}
 						activeId={region}
-						selectedIndex={regionIndex}
-						onSelect={setRegionIndex}
 						onEnter={handleRegionSelect}
 						focused={isConnectionFocused}
 						maxVisibleItems={connectionPanelHeight - 4}
@@ -164,10 +140,9 @@ export function Sidebar({ maxHeight }: SidebarProps) {
 			>
 				{browseTab === 'tables' && (
 					<SidebarSection
+						key={`tables-${currentTableName ?? 'none'}`}
 						items={tableItems}
 						activeId={currentTableName}
-						selectedIndex={tableIndex}
-						onSelect={setTableIndex}
 						onEnter={handleTableSelect}
 						focused={isBrowseFocused}
 						maxVisibleItems={browsePanelHeight ? browsePanelHeight - 4 : undefined}

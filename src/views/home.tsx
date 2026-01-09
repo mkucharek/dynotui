@@ -1,5 +1,5 @@
 import { Box, Text, useInput } from 'ink'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
 	Footer,
 	Header,
@@ -52,7 +52,6 @@ export function HomeView() {
 
 	const initialIndex = currentView.view === 'home' ? (currentView.selectedIndex ?? 0) : 0
 	const [tableSelectedIndex, setTableSelectedIndex] = useState(initialIndex)
-	const [profileSelectedIndex, setProfileSelectedIndex] = useState(0)
 	const [activeTab, setActiveTab] = useState<HomeTab>('tables')
 	const [mode, setMode] = useState<HomeMode>('browsing')
 	const [pendingProfile, setPendingProfile] = useState<AwsProfile | null>(null)
@@ -92,15 +91,6 @@ export function HomeView() {
 		const idx = regions.findIndex((r) => r.value === region)
 		return idx >= 0 ? idx : 0
 	}, [regions, region])
-
-	const currentProfileIndex = useMemo(() => {
-		const idx = profiles.findIndex((p) => p.name === (profile ?? 'default'))
-		return idx >= 0 ? idx : 0
-	}, [profiles, profile])
-
-	useEffect(() => {
-		setProfileSelectedIndex(currentProfileIndex)
-	}, [currentProfileIndex])
 
 	const handleProfileEnter = (selectedProfile: AwsProfile) => {
 		setPendingProfile(selectedProfile)
@@ -235,10 +225,9 @@ export function HomeView() {
 		if (activeTab === 'profiles') {
 			return (
 				<ProfileList
+					key={`profile-${profile ?? 'default'}`}
 					profiles={profiles}
 					currentProfile={profile}
-					selectedIndex={profileSelectedIndex}
-					onSelect={setProfileSelectedIndex}
 					onEnter={handleProfileEnter}
 					focused={mode === 'browsing'}
 				/>

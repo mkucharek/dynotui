@@ -1,6 +1,6 @@
 import { Box, Text, useInput } from 'ink'
 import TextInput from 'ink-text-input'
-import { useEffect, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import type { FilterCondition, FilterOperator } from '../../schemas/query-params.js'
 import { colors, symbols } from '../../theme.js'
 
@@ -123,12 +123,15 @@ export function FilterBuilder({
 			? { type: 'field', conditionIndex: 0, field: 'attribute' }
 			: { type: 'add' },
 	)
-	const [operatorIndices, setOperatorIndices] = useState<number[]>(
-		conditions.map((c) => FILTER_OPERATORS.findIndex((op) => op.value === c.operator)),
+
+	// Derive operator indices from conditions (no sync effect needed)
+	const operatorIndices = useMemo(
+		() => conditions.map((c) => FILTER_OPERATORS.findIndex((op) => op.value === c.operator)),
+		[conditions],
 	)
 
-	// Autocomplete state
-	const [suggestionIndex, setSuggestionIndex] = useState(0)
+	// Autocomplete state - raw index that gets clamped when used
+	const [rawSuggestionIndex, setRawSuggestionIndex] = useState(0)
 
 	// Filter suggestions based on current attribute value
 	const currentAttributeValue =
@@ -142,26 +145,27 @@ export function FilterBuilder({
 			attr !== currentAttributeValue,
 	)
 
+	// Clamp suggestion index to valid range (handles list changes without effect)
+	const suggestionIndex = Math.min(rawSuggestionIndex, Math.max(0, filteredSuggestions.length - 1))
+
 	// Show suggestions when on attribute field with available attributes
-	// (simplified - no need for separate showSuggestions state)
 	const shouldShowSuggestions =
 		activeField?.type === 'field' &&
 		activeField.field === 'attribute' &&
 		availableAttributes.length > 0 &&
 		filteredSuggestions.length > 0
 
-	// Sync local state when conditions prop changes externally
-	useEffect(() => {
-		setConditionIds((prev) => {
-			if (prev.length === conditions.length) return prev
-			// Reset IDs when length changes
+	// Sync conditionIds and activeField bounds when conditions change externally
+	// Note: Parent can use key prop for full reset on major changes
+	const prevConditionsLengthRef = useRef(conditions.length)
+	if (prevConditionsLengthRef.current !== conditions.length) {
+		prevConditionsLengthRef.current = conditions.length
+		// Reset IDs when length changes
+		if (conditionIds.length !== conditions.length) {
 			const newIds = conditions.map((_, i) => idCounter.current + i)
 			idCounter.current += conditions.length
-			return newIds
-		})
-		setOperatorIndices(
-			conditions.map((c) => FILTER_OPERATORS.findIndex((op) => op.value === c.operator)),
-		)
+			setConditionIds(newIds)
+		}
 		// Reset focus if current index is out of bounds
 		if (activeField?.type === 'field' && activeField.conditionIndex >= conditions.length) {
 			setActiveField(
@@ -170,13 +174,7 @@ export function FilterBuilder({
 					: { type: 'add' },
 			)
 		}
-	}, [conditions, activeField])
-
-	// Reset suggestion index when suggestions change or field changes
-	// biome-ignore lint/correctness/useExhaustiveDependencies: intentional reset on changes
-	useEffect(() => {
-		setSuggestionIndex(0)
-	}, [filteredSuggestions.length, activeField])
+	}
 
 	const getFieldsForCondition = (index: number): FieldType[] => {
 		const op = FILTER_OPERATORS.find((o) => o.value === conditions[index]?.operator)
@@ -190,7 +188,6 @@ export function FilterBuilder({
 	const handleAddCondition = () => {
 		const newConditions = [...conditions, createEmptyCondition()]
 		onChange(newConditions)
-		setOperatorIndices([...operatorIndices, 0])
 		const newId = idCounter.current++
 		setConditionIds([...conditionIds, newId])
 		setActiveField({ type: 'field', conditionIndex: newConditions.length - 1, field: 'attribute' })
@@ -203,10 +200,8 @@ export function FilterBuilder({
 			return
 		}
 		const newConditions = conditions.filter((_, i) => i !== index)
-		const newOpIndices = operatorIndices.filter((_, i) => i !== index)
 		const newIds = conditionIds.filter((_, i) => i !== index)
 		onChange(newConditions)
-		setOperatorIndices(newOpIndices)
 		setConditionIds(newIds)
 		if (activeField?.type === 'field' && activeField.conditionIndex >= newConditions.length) {
 			setActiveField({
@@ -343,11 +338,11 @@ export function FilterBuilder({
 				// Autocomplete handling for attribute field - arrow keys cycle suggestions
 				if (field === 'attribute' && shouldShowSuggestions) {
 					if (key.downArrow) {
-						setSuggestionIndex((prev) => (prev < filteredSuggestions.length - 1 ? prev + 1 : 0))
+						setRawSuggestionIndex((prev) => (prev < filteredSuggestions.length - 1 ? prev + 1 : 0))
 						return
 					}
 					if (key.upArrow) {
-						setSuggestionIndex((prev) => (prev > 0 ? prev - 1 : filteredSuggestions.length - 1))
+						setRawSuggestionIndex((prev) => (prev > 0 ? prev - 1 : filteredSuggestions.length - 1))
 						return
 					}
 					// Tab (not shift+tab) accepts current suggestion and moves to next field
@@ -367,9 +362,6 @@ export function FilterBuilder({
 					if (shortcutIdx !== undefined) {
 						const newOp = FILTER_OPERATORS[shortcutIdx]
 						if (newOp) {
-							const newOpIndices = [...operatorIndices]
-							newOpIndices[conditionIndex] = shortcutIdx
-							setOperatorIndices(newOpIndices)
 							updateCondition(conditionIndex, { operator: newOp.value })
 						}
 						return
@@ -378,21 +370,17 @@ export function FilterBuilder({
 					if (key.downArrow) {
 						const newOpIdx = (opIdx + 1) % FILTER_OPERATORS.length
 						const newOp = FILTER_OPERATORS[newOpIdx]
-						if (!newOp) return
-						const newOpIndices = [...operatorIndices]
-						newOpIndices[conditionIndex] = newOpIdx
-						setOperatorIndices(newOpIndices)
-						updateCondition(conditionIndex, { operator: newOp.value })
+						if (newOp) {
+							updateCondition(conditionIndex, { operator: newOp.value })
+						}
 						return
 					}
 					if (key.upArrow) {
 						const newOpIdx = (opIdx - 1 + FILTER_OPERATORS.length) % FILTER_OPERATORS.length
 						const newOp = FILTER_OPERATORS[newOpIdx]
-						if (!newOp) return
-						const newOpIndices = [...operatorIndices]
-						newOpIndices[conditionIndex] = newOpIdx
-						setOperatorIndices(newOpIndices)
-						updateCondition(conditionIndex, { operator: newOp.value })
+						if (newOp) {
+							updateCondition(conditionIndex, { operator: newOp.value })
+						}
 						return
 					}
 				}
